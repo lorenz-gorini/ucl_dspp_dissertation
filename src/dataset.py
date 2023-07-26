@@ -2,10 +2,12 @@ import os
 import zipfile
 
 from pathlib import Path
+from typing import Optional
 from io import BytesIO
 import enum
 
 import requests
+import pandas as pd
 
 
 class VariableSubset(enum.Enum):
@@ -48,13 +50,41 @@ class MicroDataset:
         self._file_path = destination_folder / f"{self._file_name}.csv"
         self._temp_path = Path(".")
 
+    @property
+    def url(self) -> str:
+        if self.year == 2013:
+            # For some reason the 2013 files are not in the standard format
+            return from_vars_to_2013_url_map[
+                f"{self.tourist_origin.value}-{self.variable_subset.value}"
+            ]
+        elif self.year >= 2016 or (
+            self.year == 2012
+            and self.variable_subset == VariableSubset.EXPANSION_FACTORS
+            and self.tourist_origin == TouristOrigin.FOREIGNERS
+        ):
+            # The 2016-2021 file names (and another special case) have a
+            # "_csv" suffix
+            return (
+                "https://www.bancaditalia.it/statistiche/tematiche/"
+                "rapporti-estero/turismo-internazionale/distribuzione-microdati/"
+                f"file-dati/documenti/{self.year}/csv/{self.tourist_origin.value}_"
+                f"{self.year}_{self.variable_subset.value}_csv.zip"
+            )
+        else:
+            return (
+                "https://www.bancaditalia.it/statistiche/tematiche/"
+                "rapporti-estero/turismo-internazionale/distribuzione-microdati/"
+                f"file-dati/documenti/{self.year}/csv/{self.tourist_origin.value}_"
+                f"{self.year}_{self.variable_subset.value}.zip"
+            )
+
     @staticmethod
-    def _unzip_file_from_stream(file_stream: BytesIO, output_folder: Path):
+    def _unzip_file_from_stream(file_stream: BytesIO, output_folder: Path) -> None:
         output_folder.mkdir(exist_ok=True)
         with zipfile.ZipFile(file_stream) as zip_file:
             zip_file.extractall(output_folder)
 
-    def _move_single_file(self, input_folder: Path, destination_file: Path):
+    def _move_single_file(self, input_folder: Path, destination_file: Path) -> None:
         # Check if there is more than one file in the extracted folder
         extracted_files = os.listdir(input_folder)
         if len(extracted_files) != 1:
@@ -70,42 +100,17 @@ class MicroDataset:
             )
             print(f"File moved to {destination_file}")
 
-    def download(self):
+    def download(self) -> None:
         # Download the file
         if self._file_path.exists():
             print(f"File {self._file_path} already exists. Skipping download")
             return
         else:
-            if self.year == 2013:
-                # For some reason the 2013 files are not in the standard format
-                url = from_vars_to_2013_url_map[
-                    f"{self.tourist_origin.value}-{self.variable_subset.value}"
-                ]
-            elif self.year >= 2016 or (
-                self.year == 2012
-                and self.variable_subset == VariableSubset.EXPANSION_FACTORS
-                and self.tourist_origin == TouristOrigin.FOREIGNERS
-            ):
-                # The 2016-2021 file names (and another special case) have a
-                # "_csv" suffix
-                url = (
-                    "https://www.bancaditalia.it/statistiche/tematiche/"
-                    "rapporti-estero/turismo-internazionale/distribuzione-microdati/"
-                    f"file-dati/documenti/{self.year}/csv/{self.tourist_origin.value}_"
-                    f"{self.year}_{self.variable_subset.value}_csv.zip"
-                )
-            else:
-                url = (
-                    "https://www.bancaditalia.it/statistiche/tematiche/"
-                    "rapporti-estero/turismo-internazionale/distribuzione-microdati/"
-                    f"file-dati/documenti/{self.year}/csv/{self.tourist_origin.value}_"
-                    f"{self.year}_{self.variable_subset.value}.zip"
-                )
-            print(f"Downloading from {url}")
+            print(f"Downloading from {self.url}")
 
             temp_folder = self._temp_path / self._file_name
             with requests.get(
-                url, allow_redirects=True, stream=True
+                self.url, allow_redirects=True, stream=True
             ) as url_file_stream:
                 self._unzip_file_from_stream(
                     BytesIO(url_file_stream.content),

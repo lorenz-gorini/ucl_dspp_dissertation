@@ -1,0 +1,17 @@
+# Byte-compiled
+__pycache__/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+#VSCODE
+.vscode
+
+# Distribution / packaging
+eggs/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Data
+data/

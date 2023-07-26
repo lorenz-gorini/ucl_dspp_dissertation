@@ -31,7 +31,7 @@ from_vars_to_2013_url_map = {
 }
 
 
-class MicrodataFile:
+class MicroDataset:
     def __init__(
         self,
         variable_subset: VariableSubset,

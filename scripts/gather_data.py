@@ -1,7 +1,7 @@
 """
 Script to gather microdata from Bank of Italy online database
 """
-from src.dataset import MicrodataFile, TouristOrigin, VariableSubset
+from src.dataset import MicroDataset, TouristOrigin, VariableSubset
 
 from pathlib import Path
 from joblib import Parallel, delayed
@@ -9,7 +9,7 @@ from joblib import Parallel, delayed
 
 # function to call in parallel
 def download_file_function(variable_subset, tourist_origin, year, destination_folder):
-    file = MicrodataFile(
+    file = MicroDataset(
         variable_subset=variable_subset,
         tourist_origin=tourist_origin,
         year=year,

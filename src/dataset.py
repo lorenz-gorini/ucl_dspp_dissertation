@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 from io import BytesIO
 import enum
+from functools import cached_property
 
 import requests
 import pandas as pd
@@ -77,6 +78,16 @@ class MicroDataset:
                 f"file-dati/documenti/{self.year}/csv/{self.tourist_origin.value}_"
                 f"{self.year}_{self.variable_subset.value}.zip"
             )
+
+    @cached_property
+    def df(self, top_n_rows: Optional[int] = None) -> pd.DataFrame:
+        if not self._file_path.exists():
+            self.download()
+        df = pd.read_csv(self._file_path)
+        if top_n_rows is None:
+            return df
+        else:
+            return df.head(top_n_rows)
 
     @staticmethod
     def _unzip_file_from_stream(file_stream: BytesIO, output_folder: Path) -> None:

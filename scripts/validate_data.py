@@ -4,10 +4,8 @@ from pathlib import Path
 import pandas as pd
 
 our_total_df = []
-
-# Loop over variable_type + italian/foreigners + years
 for origin in TouristOrigin:
-    for year in tqdm(range(1997, 2019, 1)):
+    for year in tqdm(range(1997, 2020, 1)):
         df_primary = MicroDataset(
             variable_subset=VariableSubset.PRIMARY,
             tourist_origin=origin,
@@ -38,7 +36,9 @@ for origin in TouristOrigin:
 
         try:
             FPD_SPESA_FMI_computed = (
-                df_merge["SPESA_FMI"] * df_merge["FATTORE_PONDER_DES"]
+                df_merge["SPESA_FMI"]
+                * df_merge["FATTORE_PONDER_DES"]
+                * df_merge["COEFF_CODE"]
             ).sum()
         except KeyError:
             FPD_SPESA_FMI_computed = None
@@ -54,17 +54,24 @@ for origin in TouristOrigin:
                 "missing_keys": missing_keys,
                 "FPD_NOTTI": df_primary["FPD_NOTTI"].sum(),
                 "FPD_NOTTI_computed": (
-                    df_merge["NR_NOTTI"] * df_merge["FATTORE_PONDER_DES"]
+                    df_merge["NR_NOTTI"]
+                    * df_merge["NR_TOT_VIAGG_1"]
+                    * df_merge["COEFF_CODE"]
+                    * df_merge["FATTORE_PONDER_DES"]
                 ).sum(),
                 "FPD_SPESA_FMI": df_primary["FPD_SPESA_FMI"].sum(),
                 "FPD_SPESA_FMI_computed": FPD_SPESA_FMI_computed,
                 "FP_VIAG": df_primary["FP_VIAG"].sum(),
                 "FP_VIAG_computed": (
-                    df_merge["NR_TOT_VIAGG_1"] * df_merge["FATTORE_PONDER"]
+                    df_merge["NR_TOT_VIAGG_1"]
+                    * df_merge["FATTORE_PONDER"]
+                    * df_merge["COEFF_CODE"]
                 ).sum(),
                 "FPD_VIAG": df_primary["FPD_VIAG"].sum(),
                 "FPD_VIAG_computed": (
-                    df_merge["NR_TOT_VIAGG_1"] * df_merge["FATTORE_PONDER_DES"]
+                    df_merge["NR_TOT_VIAGG_1"]
+                    * df_merge["FATTORE_PONDER_DES"]
+                    * df_merge["COEFF_CODE"]
                 ).sum(),
             }
         )

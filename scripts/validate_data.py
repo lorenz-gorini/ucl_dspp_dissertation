@@ -2,6 +2,7 @@ from src.dataset import MicroDataset, TouristOrigin, VariableSubset
 from tqdm import tqdm
 from pathlib import Path
 import pandas as pd
+import numpy as np
 
 our_total_df = []
 for origin in TouristOrigin:
@@ -109,9 +110,9 @@ for control_column, our_column in df_control_to_df_total_column_tuples:
         {
             "control_column": control_column,
             "total_column": our_column,
-            "percentage_difference": (
-                merge_df[control_column] - merge_df[our_column]
-            ).sum()
+            "percentage_difference": np.sum(
+                np.abs(merge_df[control_column] - merge_df[our_column])
+            )
             / merge_df[control_column].sum(),
             "variance": (merge_df[control_column] - merge_df[our_column]).std(),
             "min": merge_df[control_column].min(),

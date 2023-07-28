@@ -108,5 +108,3 @@ bk.output_file(
     "/mnt/c/Users/loreg/Documents/dissertation_data/figures/expenses_by_area.html"
 )
 bk.show(f)
-
-# %%

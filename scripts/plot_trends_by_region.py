@@ -84,3 +84,29 @@ bk.output_file(
 bk.show(f)
 
 # %%
+f = bk.figure(
+    title=f"Total amount spent by foreigners in Italy by macroarea",
+    x_axis_label="Year",
+    y_axis_label="Total Expenses",
+    x_range=(1997, 2023),
+    y_range=(0, max(totals_by_year["FPD_SPESA_FMI"]) * 1.1),
+    tooltips=[("Year", "@year"), ("Expenses", "@FPD_SPESA_FMI")],
+)
+# Line plot for the total nights spent by foreigners in Italy colored by macroarea
+for i, macro_area in enumerate(["North", "Center", "South"]):
+    f.line(
+        x="year",
+        y="FPD_SPESA_FMI",
+        color=Category10[3][i],
+        source=totals_by_year[totals_by_year["macroarea_visited"] == macro_area],
+        line_width=2,
+        legend_label=macro_area,
+    )
+f.legend.location = "top_left"
+f.legend.click_policy = "hide"
+bk.output_file(
+    "/mnt/c/Users/loreg/Documents/dissertation_data/figures/expenses_by_area.html"
+)
+bk.show(f)
+
+# %%

@@ -17,12 +17,21 @@ north_region_codes = [10, 12, 14, 16, 18, 20, 22, 24]
 center_region_codes = [26, 28, 30, 32]
 # ["Abruzzi","Molise","Campania","Puglia","Basilicata","Calabria","Sicilia","Sardegna"]
 south_region_codes = [34, 36, 38, 40, 42, 44, 46, 48]
+macro_area_to_region_codes = {
+    "North": north_region_codes,
+    "Center": center_region_codes,
+    "South": south_region_codes,
+}
+region_code_to_macro_area_map = {}
+for macro_area, region_codes_single_area in macro_area_to_region_codes.items():
+    for region_code in region_codes_single_area:
+        region_code_to_macro_area_map[region_code] = macro_area
 
 # Draw two bokeh plots for italian and foreigners to show how their expenses
 # and number of trips changed over the years divided by country or by italian region
 our_total_df = []
 
-nights_by_area_year = []
+total_dfs_by_year = []
 for year in tqdm(range(1997, 2023, 1)):
     df_primary = MicroDataset(
         variable_subset=VariableSubset.PRIMARY,
@@ -30,26 +39,24 @@ for year in tqdm(range(1997, 2023, 1)):
         year=year,
         destination_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
     ).df
-    for macro_area, region_codes_single_area in [
-        ("North", north_region_codes),
-        ("Center", center_region_codes),
-        ("South", south_region_codes),
-    ]:
-        nights_single_area = 0
-        expenses_single_area = 0
-        for region_code in region_codes_single_area:
-            df_single_region = df_primary[
-                df_primary["REGIONE_VISITATA"] == region_code
-            ]
-            nights_single_area += df_single_region["FPD_NOTTI"].sum()
-            expenses_single_area += df_single_region["FPD_SPESA_FMI"].sum()
-        nights_by_area_year.append(
-            {"year": year, "macro_area": macro_area, "nights": nights_single_area, "expenses": expenses_single_area}
-        )
-    # "FPD_SPESA_FMI": df_primary["FPD_SPESA_FMI"].sum(),
 
-nights_by_area_year = pd.DataFrame(nights_by_area_year)
-nights_by_area_year.head()
+    df_primary["macroarea_visited"] = df_primary["REGIONE_VISITATA"].map(
+        region_code_to_macro_area_map
+    )
+    print(
+        f"The region codes not associated to a macroarea are: {df_primary['macroarea_visited'].isna().sum()}"
+    )
+    totals_single_area = df_primary.groupby("macroarea_visited")[
+        ["FPD_NOTTI", "FPD_SPESA_FMI"]
+    ].sum()
+    totals_single_area.reset_index(drop=False, inplace=True)
+    totals_single_area["year"] = year
+
+    total_dfs_by_year.append(totals_single_area)
+
+totals_by_year = pd.concat(total_dfs_by_year, axis=0)
+totals_by_year.sort_values(by=["year", "macroarea_visited"], inplace=True)
+totals_by_year.head()
 # %%
 f = bk.figure(
     title=f"Total nights spent by foreigners in Italy by macroarea",
@@ -57,15 +64,15 @@ f = bk.figure(
     y_axis_label="Total nights spent",
     x_range=(1997, 2023),
     y_range=(0, 2.1e8),
-    tooltips=[("Year", "@year"), ("Nights", "@nights")],
+    tooltips=[("Year", "@year"), ("Nights", "@FPD_NOTTI")],
 )
 # Line plot for the total nights spent by foreigners in Italy colored by macroarea
 for i, macro_area in enumerate(["North", "Center", "South"]):
     f.line(
         x="year",
-        y="nights",
+        y="FPD_NOTTI",
         color=Category10[3][i],
-        source=nights_by_area_year[nights_by_area_year["macro_area"] == macro_area],
+        source=totals_by_year[totals_by_year["macroarea_visited"] == macro_area],
         line_width=2,
         legend_label=macro_area,
     )

@@ -153,6 +153,8 @@ totals_by_year.head()
 # and number of trips changed over the years divided by country of origin
 f = bk.figure(
     title=f"Total amount spent by foreigners in Italy by country of origin",
+    height=500,
+    width=800,
     x_axis_label="Year",
     y_axis_label="Total Expenses",
     x_range=(1997, 2023),
@@ -172,10 +174,10 @@ top_20_series = (
     .index
 )
 
+palette = Category20[len(top_20_series)] if len(top_20_series) <= 20 else Turbo256
 # Line plot for the total nights spent by foreigners in Italy colored by macroarea
 legend_it = []
 for i, country in enumerate(top_20_series):
-    palette = Category20[len(top_20_series)] if len(top_20_series) <= 20 else Turbo256
     country_serie = f.line(
         x="year",
         y="FPD_SPESA_FMI",
@@ -186,7 +188,7 @@ for i, country in enumerate(top_20_series):
     legend_it.append((country, [country_serie]))
 legend = Legend(items=legend_it)
 legend.click_policy = "mute"
-
+legend.label_text_font_size = "8pt"
 f.add_layout(legend, "right")
 bk.output_notebook()
 bk.show(f)

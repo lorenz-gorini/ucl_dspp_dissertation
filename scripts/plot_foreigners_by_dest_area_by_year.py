@@ -193,3 +193,64 @@ f.add_layout(legend, "right")
 bk.output_notebook()
 bk.show(f)
 
+# %%
+# Create a stacked bar chart to show the share of expenses spent by foreigners by country of origin
+
+# Compute the share of total expenses by year and country of origin
+totals_by_year["share"] = (
+    totals_by_year["FPD_SPESA_FMI"]
+    / totals_by_year.groupby("year")["FPD_SPESA_FMI"].transform("sum")
+    * 100  # to get the percentage
+)
+totals_by_year.head()
+f = bk.figure(
+    title="Percentage share of the amount spent by foreigners in Italy by country"
+    " of origin",
+    height=500,
+    width=800,
+    x_axis_label="Year",
+    y_axis_label="Expenses Share (%)",
+    x_range=(1997, 2023),
+    y_range=(0, 104),
+    tooltips=[("Year", "@year")],
+)
+# Plot stacked bar chart
+# Filter on the top 19 countries to improve readability (then add the "OTHER" category)
+top_20_series = list(
+    totals_by_year.groupby("origin_country")["FPD_SPESA_FMI"]
+    .sum()
+    .sort_values(ascending=False)
+    .head(19)
+    .index
+)
+# Create category "other" for the remaining countries in order to fill up the chart
+# to 100% each year
+other_countries = totals_by_year[~totals_by_year["origin_country"].isin(top_20_series)]
+other_countries = other_countries.groupby("year")["share"].sum().reset_index()
+other_countries["origin_country"] = "OTHER"
+top_20_series.append("OTHER")
+totals_by_year_w_other = pd.concat([totals_by_year, other_countries], axis=0)
+
+palette = Category20[len(top_20_series)] if len(top_20_series) <= 20 else Turbo256
+pivot_df = pd.pivot_table(
+    totals_by_year_w_other,
+    index="year",
+    columns="origin_country",
+    values="share",
+    aggfunc="sum",
+)
+pivot_df.reset_index(drop=False, inplace=True)
+f.add_layout(Legend(), "right")
+country_serie = f.varea_stack(
+    stackers=top_20_series,
+    x="year",
+    color=palette,
+    source=pivot_df,
+    legend_label=top_20_series,
+)
+f.legend.label_text_font_size = "8pt"
+f.legend.click_policy = "mute"
+bk.output_notebook()
+bk.show(f)
+
+# %%

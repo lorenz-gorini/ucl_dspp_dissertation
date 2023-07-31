@@ -8,12 +8,13 @@ from joblib import Parallel, delayed
 
 
 # function to call in parallel
-def download_file_function(variable_subset, tourist_origin, year, destination_folder):
+def download_file_function(variable_subset, tourist_origin, year, raw_folder):
     file = MicroDataset(
         variable_subset=variable_subset,
         tourist_origin=tourist_origin,
         year=year,
-        destination_folder=destination_folder,
+        raw_folder=raw_folder,
+        processed_folder=None,
     )
     file.download()
 
@@ -27,7 +28,7 @@ for var_subset in VariableSubset:
                 variable_subset=var_subset,
                 tourist_origin=origin,
                 year=year,
-                destination_folder=Path(
+                raw_folder=Path(
                     "/mnt/c/Users/loreg/Documents/dissertation_data/raw"
                 ),
             )

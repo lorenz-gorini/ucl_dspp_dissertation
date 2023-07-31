@@ -11,18 +11,14 @@ for origin in TouristOrigin:
             variable_subset=VariableSubset.PRIMARY,
             tourist_origin=origin,
             year=year,
-            destination_folder=Path(
-                "/mnt/c/Users/loreg/Documents/dissertation_data/raw"
-            ),
+            raw_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
         ).df
 
         df_exp_factor = MicroDataset(
             variable_subset=VariableSubset.EXPANSION_FACTORS,
             tourist_origin=origin,
             year=year,
-            destination_folder=Path(
-                "/mnt/c/Users/loreg/Documents/dissertation_data/raw"
-            ),
+            raw_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
         ).df
 
         if "CHIAVE" in df_primary.columns:

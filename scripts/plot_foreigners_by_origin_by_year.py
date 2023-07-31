@@ -1,5 +1,10 @@
 # %%
-from src.dataset import MicroDataset, TouristOrigin, VariableSubset
+from src.dataset import (
+    MicroDataset,
+    TouristOrigin,
+    VariableSubset,
+)
+from src.operations import CodeToLocationMapperFromCSV
 from tqdm import tqdm
 from pathlib import Path
 import pandas as pd
@@ -10,33 +15,32 @@ from bokeh.models import Legend
 # %%
 # Plot the same time series after grouping the travellers by their country of origin
 
-# 1. Load the country codes
-country_codes = pd.read_csv(
-    "/mnt/c/Users/loreg/Documents/dissertation_data/Metadati-CSV/TSTATI.csv", sep=";"
+
+code_mapper = CodeToLocationMapperFromCSV(
+    dataset_column="STATO_RESIDENZA",
+    destination_column="origin_country",
+    code_map_csv="/mnt/c/Users/loreg/Documents/dissertation_data/Metadati-CSV/TSTATI.csv",
+    code_column="ELEM_DOMINIO",
+    location_name_column="D_EL_DOMINIO",
+    separator=";",
 )
-# turn the country codes into a dictionary
-country_code_to_country_name = {}
-for _, row in country_codes.iterrows():
-    country_code_to_country_name[row["ELEM_DOMINIO"]] = row["D_EL_DOMINIO"]
 
 # 2. Load the data by year and compute the aggregated values by year and
 # by country of origin
 total_dfs_by_year = []
 for year in tqdm(range(1997, 2023, 1)):
-    df_primary = MicroDataset(
+    dataset = MicroDataset(
         variable_subset=VariableSubset.PRIMARY,
         tourist_origin=TouristOrigin.FOREIGNERS,
         year=year,
-        destination_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
-    ).df
+        raw_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
+        processed_folder=Path(
+            "/mnt/c/Users/loreg/Documents/dissertation_data/processed"
+        ),
+    )
 
-    df_primary["origin_country"] = df_primary["STATO_RESIDENZA"].map(
-        country_code_to_country_name
-    )
-    print(
-        "The country codes not associated to a country name are: "
-        + str(df_primary["origin_country"].isna().sum())
-    )
+    df_primary = dataset.apply(code_mapper).df
+    
     totals_single_area = df_primary.groupby("origin_country")[
         ["FPD_NOTTI", "FPD_SPESA_FMI", "FPD_VIAG"]
     ].sum()

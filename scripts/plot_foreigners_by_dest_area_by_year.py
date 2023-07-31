@@ -1,5 +1,6 @@
 # %%
 from src.dataset import MicroDataset, TouristOrigin, VariableSubset
+from src.operations import CodeToLocationMapper
 from tqdm import tqdm
 from pathlib import Path
 import pandas as pd
@@ -28,23 +29,24 @@ for macro_area, region_codes_single_area in macro_area_to_region_codes.items():
     for region_code in region_codes_single_area:
         region_code_to_macro_area_map[region_code] = macro_area
 
+code_mapper = CodeToLocationMapper(
+    dataset_column="REGIONE_VISITATA",
+    destination_column="macroarea_visited",
+    code_map=region_code_to_macro_area_map,
+)
 # Draw two bokeh plots for italian and foreigners to show how their expenses
 # and number of trips changed over the years divided by country or by italian region
 total_dfs_by_year = []
 for year in tqdm(range(1997, 2023, 1)):
-    df_primary = MicroDataset(
+    dataset = MicroDataset(
         variable_subset=VariableSubset.PRIMARY,
         tourist_origin=TouristOrigin.FOREIGNERS,
         year=year,
-        destination_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
-    ).df
+        raw_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
+    )
 
-    df_primary["macroarea_visited"] = df_primary["REGIONE_VISITATA"].map(
-        region_code_to_macro_area_map
-    )
-    print(
-        f"The region codes not associated to a macroarea are: {df_primary['macroarea_visited'].isna().sum()}"
-    )
+    df_primary = dataset.apply(code_mapper).df
+
     totals_single_area = df_primary.groupby("macroarea_visited")[
         ["FPD_NOTTI", "FPD_SPESA_FMI"]
     ].sum()

@@ -21,7 +21,6 @@ for _, row in country_codes.iterrows():
 
 # 2. Load the data by year and compute the aggregated values by year and
 # by country of origin
-# TODO: Map the codes in "STATO_RESIDENZA" column and then groupby it
 total_dfs_by_year = []
 for year in tqdm(range(1997, 2023, 1)):
     df_primary = MicroDataset(
@@ -93,10 +92,10 @@ legend.click_policy = "mute"
 legend.label_text_font_size = "8pt"
 f.add_layout(legend, "right")
 
-# bk.output_file(
-#     "/mnt/c/Users/loreg/Documents/dissertation_data/figures/expenses_by_area.html"
-# )
-bk.output_notebook()
+bk.output_file(
+    "/mnt/c/Users/loreg/Documents/dissertation_data/figures/expenses_timeseries_by_origin.html"
+)
+# bk.output_notebook()
 bk.show(f)
 
 # %%
@@ -156,5 +155,8 @@ country_serie = f.varea_stack(
 )
 f.legend.label_text_font_size = "8pt"
 f.legend.click_policy = "mute"
-bk.output_notebook()
+# bk.output_notebook()
+bk.output_file(
+    "/mnt/c/Users/loreg/Documents/dissertation_data/figures/expenses_timeseries_percentage_share_stackedareas_by_origin.html"
+)
 bk.show(f)

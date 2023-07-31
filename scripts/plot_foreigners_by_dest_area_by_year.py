@@ -1,12 +1,13 @@
 # %%
-from src.dataset import MicroDataset, TouristOrigin, VariableSubset
-from src.operations import CodeToLocationMapper
-from tqdm import tqdm
 from pathlib import Path
+
+import bokeh.plotting as bk
 import pandas as pd
 from bokeh.palettes import Category10
-import bokeh.plotting as bk
+from tqdm import tqdm
 
+from src.dataset import MicroDataset, TouristOrigin, VariableSubset
+from src.operations import CodeToLocationMapper
 
 # %%
 region_code_map = pd.read_csv(

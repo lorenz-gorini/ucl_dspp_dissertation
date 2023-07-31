@@ -1,10 +1,11 @@
 """
 Script to gather microdata from Bank of Italy online database
 """
-from src.dataset import MicroDataset, TouristOrigin, VariableSubset
-
 from pathlib import Path
+
 from joblib import Parallel, delayed
+
+from src.dataset import MicroDataset, TouristOrigin, VariableSubset
 
 
 # function to call in parallel

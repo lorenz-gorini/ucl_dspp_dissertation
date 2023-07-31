@@ -1,8 +1,10 @@
-from src.dataset import MicroDataset, TouristOrigin, VariableSubset
-from tqdm import tqdm
 from pathlib import Path
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+from tqdm import tqdm
+
+from src.dataset import MicroDataset, TouristOrigin, VariableSubset
 
 our_total_df = []
 for origin in TouristOrigin:

@@ -1,14 +1,14 @@
 from __future__ import annotations
+
+import enum
 import os
 import zipfile
-
+from io import BytesIO
 from pathlib import Path
 from typing import List
-from io import BytesIO
-import enum
 
-import requests
 import pandas as pd
+import requests
 
 
 class VariableSubset(enum.Enum):

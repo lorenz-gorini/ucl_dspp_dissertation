@@ -1,9 +1,9 @@
+from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, Union, Dict
+from typing import Dict, Optional, Union
 
 import pandas as pd
 
-from abc import ABC, abstractmethod
 from .dataset import MicroDataset
 
 

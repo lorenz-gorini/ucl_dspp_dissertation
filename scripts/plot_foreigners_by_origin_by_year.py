@@ -1,16 +1,14 @@
 # %%
-from src.dataset import (
-    MicroDataset,
-    TouristOrigin,
-    VariableSubset,
-)
-from src.operations import CodeToLocationMapperFromCSV
-from tqdm import tqdm
 from pathlib import Path
-import pandas as pd
-from bokeh.palettes import Category20, Turbo256
+
 import bokeh.plotting as bk
+import pandas as pd
 from bokeh.models import Legend
+from bokeh.palettes import Category20, Turbo256
+from tqdm import tqdm
+
+from src.dataset import MicroDataset, TouristOrigin, VariableSubset
+from src.operations import CodeToLocationMapperFromCSV
 
 # %%
 # Plot the same time series after grouping the travellers by their country of origin

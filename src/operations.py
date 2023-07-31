@@ -58,8 +58,32 @@ class CodeToLocationMapperFromCSV(DatasetOperation):
         code_map_csv: Union[str, Path],
         code_column: str,
         location_name_column: str,
+        nan_codes: Optional[List[int]] = None,
         separator: Optional[str] = None,
     ) -> None:
+        """
+        Create a mapper from location codes to location names from a CSV file
+
+        Parameters
+        ----------
+        dataset_column : str
+            The name of the column in the dataset containing the location codes
+        destination_column : str
+            The name of the column in the dataset containing the location names
+        code_map_csv : Union[str, Path]
+            The path to the CSV file containing the location codes and names
+        code_column : str
+            The name of the column in the CSV file containing the location codes
+        location_name_column : str
+            The name of the column in the CSV file containing the location names
+        nan_codes : Optional[List[int]], optional
+            The list of codes that will be mapped to pd.NA. If None,
+            the codes considered as NaN are None and pd.NA, otherwise these two values
+            will be added to the list ``nan_codes`` provided. Default is None.
+        separator : Optional[str], optional
+            The separator used in the CSV file. If None, the
+            separator is a comma ",". Default is None.
+        """
         super().__init__(
             dataset_column=dataset_column, destination_column=destination_column
         )
@@ -67,6 +91,10 @@ class CodeToLocationMapperFromCSV(DatasetOperation):
         self.code_column = code_column
         self.location_name_column = location_name_column
         self.separator = "," if separator is None else separator
+        
+        self.nan_codes = set(None, pd.NA)
+        if nan_codes is not None:
+            self.nan_codes = self.nan_codes | set(nan_codes)
         # Load the CSV file with the location codes and names
         self._code_map_df = pd.read_csv(self.code_map_csv, sep=self.separator)
 
@@ -74,7 +102,11 @@ class CodeToLocationMapperFromCSV(DatasetOperation):
         # Turn the df into a dictionary mapping codes to names
         code_to_name_dict = {}
         for _, row in self._code_map_df.iterrows():
-            code_to_name_dict[row[self.code_column]] = row[self.location_name_column]
+            code_to_name_dict[row[self.code_column]] = (
+                pd.NA
+                if row[self.code_column] in self.nan_codes
+                else row[self.location_name_column]
+            )
 
         new_df = CodeToLocationMapper(
             dataset_column=self.dataset_column,

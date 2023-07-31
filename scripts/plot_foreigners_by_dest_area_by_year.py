@@ -3,9 +3,8 @@ from src.dataset import MicroDataset, TouristOrigin, VariableSubset
 from tqdm import tqdm
 from pathlib import Path
 import pandas as pd
-from bokeh.palettes import Category20, Turbo256, Category10
+from bokeh.palettes import Category10
 import bokeh.plotting as bk
-from bokeh.models import Legend
 
 
 # %%

@@ -145,6 +145,13 @@ class MicroDataset:
             self._df["operations"] = None
         self._df.loc[len(self.operations), "operations"] = str(operation)
 
+    def _remove_operation(self, operation: "DatasetOperation") -> None:
+        if "operations" not in self.df.columns:
+            self._df["operations"] = None
+        self._df["operations"] = self._df["operations"].apply(
+            lambda x: None if x == str(operation) else x
+        )
+
     def _move_single_file(self, input_folder: Path, destination_file: Path) -> None:
         # Check if there is more than one file in the extracted folder
         extracted_files = os.listdir(input_folder)

@@ -86,7 +86,7 @@ class MicroDataset:
         self.raw_folder.mkdir(parents=True, exist_ok=True)
         self.processed_folder.mkdir(parents=True, exist_ok=True)
         self.raw_file_path = self.raw_folder / f"{self.file_name}.csv"
-        self.processed_file_path = self.raw_folder / f"{self.file_name}.csv"
+        self.processed_file_path = self.processed_folder / f"{self.file_name}.csv"
 
         self._temp_path = Path(".")
         self._df = None

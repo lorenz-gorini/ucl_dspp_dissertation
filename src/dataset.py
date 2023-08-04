@@ -132,6 +132,8 @@ class MicroDataset:
 
     @property
     def operations(self) -> List[str]:
+        if "operations" not in self.df.columns:
+            self._df["operations"] = None
         return self.df[~self.df["operations"].isna()]["operations"].to_list()
 
     @staticmethod
@@ -141,7 +143,7 @@ class MicroDataset:
             zip_file.extractall(output_folder)
 
     def _add_operation(self, operation: "DatasetOperation") -> None:
-        if "operations" not in self._df.columns:
+        if "operations" not in self.df.columns:
             self._df["operations"] = None
         self._df.loc[len(self.operations), "operations"] = str(operation)
 

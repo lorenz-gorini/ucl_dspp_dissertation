@@ -170,9 +170,16 @@ class MicroDataset:
             )
             print(f"File moved to {destination_file}")
 
-    def set_df(self, new_df: pd.DataFrame) -> None:
-        self._df = new_df
-        new_df.to_csv(self.processed_file_path, index=False)
+    def save_df(self) -> None:
+        """
+        Set the dataset to a new dataframe and save it to disk
+
+        WARNING: Be careful when using this method, because it will overwrite the
+        previous file without keeping track of the operations performed on the dataset.
+        It is highly recommended to use the ``apply`` method with a
+        ``DatasetOperation`` instead.
+        """
+        self._df.to_csv(self.processed_file_path, index=False)
 
     def download(self) -> None:
         # Download the file
@@ -211,9 +218,9 @@ class MicroDataset:
                 self._remove_operation(operation)
 
             print(f"Applying operation {str(operation)} to dataset")
-            new_df = operation(self)
-            self.set_df(new_df)
+            self._df = operation(self)
             self._add_operation(operation)
+            self.save_df()
         return self
 
     def __str__(self) -> str:

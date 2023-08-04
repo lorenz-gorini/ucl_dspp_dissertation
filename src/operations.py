@@ -364,3 +364,103 @@ class LocationToCoordinatesMapper(DatasetOperation):
             f"{type(self.geolocator)})"
         )
 
+
+class CoordinateToElevationMapper(DatasetOperation):
+    def __init__(
+        self,
+        dataset_lat_column: str,
+        dataset_long_column: str,
+        output_column: str,
+        force_repeat: bool = False,
+    ) -> None:
+        super().__init__(
+            input_columns=[dataset_lat_column, dataset_long_column],
+            output_columns=[output_column],
+            force_repeat=force_repeat,
+        )
+        self.dataset_lat_column = dataset_lat_column
+        self.dataset_long_column = dataset_long_column
+        self._url = "https://api.open-elevation.com/api/v1/lookup"
+        self.coords_to_elevation_map_cache = {}
+
+    def __call__(self, dataset: MicroDataset) -> pd.DataFrame:
+        """
+        Find the elevation of the locations in the dataset and add this to the dataset
+
+        Parameters
+        ----------
+        dataset : MicroDataset
+            The dataset to geocode
+
+        Returns
+        -------
+        pd.DataFrame
+            The pd.DataFrame from ``dataset`` argument, where the
+            ``destination_column`` is added, filled with the elevation for each location
+        """
+        TEMP_COORD_TUPLE_COL = "coords_tuple"
+        new_df = dataset.df.copy()
+        # 1. Create a column with the tuples of latitude and longitude
+        # that we will later map to the elevation
+        new_df[TEMP_COORD_TUPLE_COL] = new_df[
+            [self.dataset_lat_column, self.dataset_long_column]
+        ].apply(
+            lambda row: (row[self.dataset_lat_column], row[self.dataset_long_column]),
+            axis=1,
+        )
+        # 2. Create a set of the unique tuples to map (so that we only send one request
+        # for each unique combination) and remove the coordinates already geocoded
+        missing_coords = list(
+            set(new_df[TEMP_COORD_TUPLE_COL].unique())
+            - set(self.coords_to_elevation_map_cache.keys())
+        )
+        # 3. Remove the NaNs
+        missing_coords = pd.DataFrame(missing_coords, columns=["latitude", "longitude"])
+        missing_coords = missing_coords.dropna(axis=0, how="any")
+        missing_coords = list(
+            zip(
+                missing_coords["latitude"].tolist(),
+                missing_coords["longitude"].tolist(),
+            )
+        )
+        print(f"Found {len(missing_coords)} coordinates to find the elevation of")
+        # Loop through the dataset getting 100 rows at a time
+        for i in range(0, len(missing_coords), 100):
+            rows_to_geocode = missing_coords[i : i + 100]
+            response = requests.post(
+                url=self._url,
+                json={
+                    "locations": [
+                        {"latitude": latit, "longitude": longit}
+                        for latit, longit in rows_to_geocode
+                    ]
+                },
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+            )
+            response.raise_for_status()
+            results = response.json()["results"]
+            # Add elevation to cache
+            self.coords_to_elevation_map_cache.update(
+                {
+                    coord_tuple: result["elevation"]
+                    for coord_tuple, result in zip(rows_to_geocode, results)
+                }
+            )
+        # Add the elevation to the dataset
+        new_df[self.output_columns[0]] = new_df[TEMP_COORD_TUPLE_COL].map(
+            self.coords_to_elevation_map_cache,
+        )
+        print(f"Found {new_df[self.output_columns[0]].isna().sum()} missing values")
+        # Remove the temporary column
+        new_df.drop(columns=[TEMP_COORD_TUPLE_COL], inplace=True)
+
+        return new_df
+
+    def __str__(self) -> str:
+        return (
+            f"CoordinateToElevationMapper({self.dataset_lat_column},"
+            f" {self.dataset_long_column}, {self.output_columns})"
+        )

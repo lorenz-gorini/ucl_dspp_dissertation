@@ -12,9 +12,11 @@ class DatasetOperation(ABC):
         self,
         input_columns: List[str],
         output_columns: List[str],
+        force_repeat: bool = False,
     ) -> None:
         self.input_columns = input_columns
         self.output_columns = output_columns
+        self.force_repeat = force_repeat
 
     @abstractmethod
     def __call__(self, dataset: MicroDataset) -> MicroDataset:
@@ -31,12 +33,13 @@ class CodeToLocationMapper(DatasetOperation):
         input_column: str,
         output_column: str,
         code_map: Dict[int, str],
+        force_repeat: bool = False,
     ) -> None:
         super().__init__(
             input_columns=[input_column],
             output_columns=[output_column],
+            force_repeat=force_repeat,
         )
-        # Load the CSV file with the location codes and names
         self.code_map = code_map
 
     def __call__(self, dataset: MicroDataset) -> pd.DataFrame:
@@ -67,6 +70,7 @@ class CodeToLocationMapperFromCSV(DatasetOperation):
         location_name_column: str,
         nan_codes: Optional[List[int]] = None,
         separator: Optional[str] = None,
+        force_repeat: bool = False,
     ) -> None:
         """
         Create a mapper from location codes to location names from a CSV file
@@ -94,6 +98,7 @@ class CodeToLocationMapperFromCSV(DatasetOperation):
         super().__init__(
             input_columns=[input_column],
             output_columns=[output_column],
+            force_repeat=force_repeat,
         )
         self.code_map_csv = code_map_csv
         self.code_column = code_column

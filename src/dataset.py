@@ -188,12 +188,20 @@ class MicroDataset:
             os.rmdir(temp_folder)
 
     def apply(self, operation: "DatasetOperation") -> "MicroDataset":
-        if operation.destination_column in self.df.columns:
-            print(
-                f"Column {operation.destination_column} already exists in dataset,"
-                f" skipping operation {str(operation)}"
-            )
+        if operation.force_repeat is False and str(operation) in self.operations:
+            print(f"Operation {str(operation)} already performed on dataset. Skipping")
+            # Check that all the output columns are in the dataframe
+            for col in operation.output_columns:
+                if col not in self.df.columns:
+                    raise ValueError(
+                        f"Operation {str(operation)} was already performed on dataset,"
+                        f" but the output column {col} is not in the dataframe."
+                    )
         else:
+            if operation.force_repeat is True:
+                self._remove_operation(operation)
+
+            print(f"Applying operation {str(operation)} to dataset")
             new_df = operation(self)
             self.set_df(new_df)
             self._add_operation(operation)

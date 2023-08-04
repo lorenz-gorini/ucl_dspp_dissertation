@@ -18,7 +18,7 @@ code_mapper = CodeToLocationMapperFromCSV(
     dataset_column="STATO_RESIDENZA",
     destination_column="origin_country",
     code_map_csv="/mnt/c/Users/loreg/Documents/dissertation_data/Metadati-CSV/TSTATI.csv",
-    code_column="ELEM_DOMINIO",
+    input_column="ELEM_DOMINIO",
     location_name_column="D_EL_DOMINIO",
     separator=";",
 )
@@ -38,7 +38,7 @@ for year in tqdm(range(1997, 2023, 1)):
     )
 
     df_primary = dataset.apply(code_mapper).df
-    
+
     totals_single_area = df_primary.groupby("origin_country")[
         ["FPD_NOTTI", "FPD_SPESA_FMI", "FPD_VIAG"]
     ].sum()

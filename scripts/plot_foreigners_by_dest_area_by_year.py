@@ -31,8 +31,8 @@ for macro_area, region_codes_single_area in macro_area_to_region_codes.items():
         region_code_to_macro_area_map[region_code] = macro_area
 
 code_mapper = CodeToLocationMapper(
-    dataset_column="REGIONE_VISITATA",
-    destination_column="macroarea_visited",
+    input_column="REGIONE_VISITATA",
+    output_column="macroarea_visited",
     code_map=region_code_to_macro_area_map,
 )
 # Draw two bokeh plots for italian and foreigners to show how their expenses

@@ -66,7 +66,7 @@ class CodeToLocationMapperFromCSV(DatasetOperation):
         input_column: str,
         output_column: str,
         code_map_csv: Union[str, Path],
-        code_column: str,
+        code_column_csv: str,
         location_name_column: str,
         nan_codes: Optional[List[int]] = None,
         separator: Optional[str] = None,
@@ -83,7 +83,7 @@ class CodeToLocationMapperFromCSV(DatasetOperation):
             The name of the column in the dataset containing the location names
         code_map_csv : Union[str, Path]
             The path to the CSV file containing the location codes and names
-        code_column : str
+        code_column_csv : str
             The name of the column in the CSV file containing the location codes
         location_name_column : str
             The name of the column in the CSV file containing the location names
@@ -101,11 +101,11 @@ class CodeToLocationMapperFromCSV(DatasetOperation):
             force_repeat=force_repeat,
         )
         self.code_map_csv = code_map_csv
-        self.code_column = code_column
+        self.code_column_csv = code_column_csv
         self.location_name_column = location_name_column
         self.separator = "," if separator is None else separator
-        
-        self.nan_codes = set(None, pd.NA)
+
+        self.nan_codes = set([None, pd.NA])
         if nan_codes is not None:
             self.nan_codes = self.nan_codes | set(nan_codes)
         # Load the CSV file with the location codes and names
@@ -115,9 +115,9 @@ class CodeToLocationMapperFromCSV(DatasetOperation):
         # Turn the df into a dictionary mapping codes to names
         code_to_name_dict = {}
         for _, row in self._code_map_df.iterrows():
-            code_to_name_dict[row[self.code_column]] = (
+            code_to_name_dict[row[self.code_column_csv]] = (
                 pd.NA
-                if row[self.code_column] in self.nan_codes
+                if row[self.code_column_csv] in self.nan_codes
                 else row[self.location_name_column]
             )
 
@@ -131,4 +131,5 @@ class CodeToLocationMapperFromCSV(DatasetOperation):
     def __str__(self) -> str:
         return (
             f"CodeToLocationMapperFromCSV({self.input_columns[0]}, {self.output_columns[0]}, "
+            f"{self.code_map_csv}, {self.code_column_csv}, {self.location_name_column})"
         )

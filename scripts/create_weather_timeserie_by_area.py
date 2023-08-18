@@ -79,32 +79,36 @@ for name, polygon in list(province_polygons.items()):
     single_prov_ts_serie = pd.concat(one_prov_multi_year_list, axis=0)
     timeseries_per_prov.append(single_prov_ts_serie)
 
-timeseries_per_prov_df = pd.DataFrame(timeseries_per_prov)
+timeseries_per_prov_df = pd.DataFrame(timeseries_per_prov).T
+timeseries_per_prov_df.index = pd.to_datetime(timeseries_per_prov_df.index)
+timeseries_per_prov_df.reset_index(inplace=True, drop=False)
+timeseries_per_prov_df.rename(columns={"index": "date"}, inplace=True)
 timeseries_per_prov_df.to_csv(
-    "/mnt/c/Users/loreg/Documents/dissertation_data/timeseries_per_province.csv"
+    "/mnt/c/Users/loreg/Documents/dissertation_data/timeseries_per_country.csv",
+    index=False,
 )
 
 
 if POST_ANALYSIS:
     timeseries_per_prov_df.T.plot()
     # count nan values and sort by number of nan values
-    timeseries_per_prov_df.isna().sum(axis=1).sort_values(ascending=False)
+    timeseries_per_prov_df.isna().sum(axis=0).sort_values(ascending=False)
 
     # Groupby the combination of (month, year) (contained in the index datetime) and get the mean temperature for each month
     df_by_year_month = timeseries_per_prov_df.groupby(
-        [timeseries_per_prov_df.index.year, timeseries_per_prov_df.index.month]
+        [timeseries_per_prov_df.time.year, timeseries_per_prov_df.time.month]
     ).mean()
     # Combine the month and year into a single datetime
-    df_by_year_month.index = pd.to_datetime(
-        df_by_year_month.index.get_level_values(0).astype(str)
+    df_by_year_month.time = pd.to_datetime(
+        df_by_year_month.time.get_level_values(0).astype(str)
         + "-"
-        + df_by_year_month.index.get_level_values(1).astype(str)
+        + df_by_year_month.time.get_level_values(1).astype(str)
     )
     df_by_year_month.plot()
 
     # Groupby year (contained in the index datetime) and get the mean temperature for each year
-    df_by_year = timeseries_per_prov_df.groupby(
-        timeseries_per_prov_df.index.year
-    ).mean()
-    df_by_year.index = pd.to_datetime(df_by_year.index.astype(str))
+    df_by_year = timeseries_per_prov_df.groupby(timeseries_per_prov_df.time.year).mean()
+    df_by_year.index = pd.to_datetime(df_by_year.time.astype(str))
+    # Drop time column
+    df_by_year.drop(columns=["time"], inplace=True)
     df_by_year.plot()

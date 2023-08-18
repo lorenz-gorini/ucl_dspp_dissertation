@@ -164,6 +164,11 @@ class AreaClipOperation(TimeSerieOperation):
         -------
         xr.Dataset
             Dataset containing the clipped timeserie data
+
+        Raises
+        ------
+        rioxarray.exceptions.NoDataInBounds
+            If the timeserie data does not contain any data in the given area
         """
         return dataset.rio.clip([self.area])
 

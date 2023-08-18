@@ -64,11 +64,12 @@ class TimeSerieDataset(ABC):
                     nc_file_folder
                     / f"{timeserie_name.value}_ens_mean_0.1deg_reg_v27.0e.nc"
                 )
-                self.ts_data = self.read_ts_data(nc_file)
+                self.ts_data = self.read_ts_data(nc_file, crs=file_crs)
         else:
             self.ts_data = ts_data
 
-    def read_ts_data(self, nc_file_path: Path) -> xr.Dataset:
+    @staticmethod
+    def read_ts_data(nc_file_path: Path, crs: str) -> xr.Dataset:
         """
         Loads the timeserie data from the netCDF file
 
@@ -85,7 +86,7 @@ class TimeSerieDataset(ABC):
         ts_data = xr.open_dataset(nc_file_path)
         # We set the spatial dimensions and the CRS here to be sure they are set right
         ts_data = ts_data.rio.set_spatial_dims(x_dim="longitude", y_dim="latitude")
-        ts_data = ts_data.rio.write_crs(self.crs)
+        ts_data = ts_data.rio.write_crs(crs)
         return ts_data
 
     def to_file(self, file_path: Path) -> None:

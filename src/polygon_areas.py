@@ -1,6 +1,6 @@
 import numpy as np
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 import geopandas as gpd
 import rioxarray
 import shapely
@@ -65,17 +65,26 @@ def from_point_to_area(
     return shapely.Polygon(polygon)
 
 
-@dataclass
 class PolygonAreasFromFile:
-    column_name: str
-    crs: str = "EPSG:4326"
-    shapefile_path: Path = (
-        "/mnt/c/Users/loreg/Documents/dissertation_data/"
-        "world-administrative-boundaries"
-    )
+    def __init__(
+        self,
+        column_name: str,
+        crs: str = "EPSG:4326",
+        shapefile_path: Optional[Path] = None,
+        geo_df: Optional[gpd.GeoDataFrame] = None,
+    ) -> None:
+        self.column_name = column_name
+        self.crs = crs
+        if geo_df is None:
+            if shapefile_path is None:
+                raise ValueError("Either `shapefile_path` or `geo_df` must be not None")
+            else:
+                self.geo_df = self.read_geo_df(shapefile_path)
+        else:
+            self.geo_df = geo_df
 
-    @cached_property
-    def geo_df(self) -> gpd.GeoDataFrame:
+    @staticmethod
+    def read_geo_df(file_path:Path, crs:str) -> gpd.GeoDataFrame:
         """
         Loads the shapefile for the given country
 
@@ -84,8 +93,8 @@ class PolygonAreasFromFile:
         gpd.GeoDataFrame
             GeoDataFrame containing the shapefile data
         """
-        geo_df = gpd.read_file(self.shapefile_path)
-        geo_df = geo_df.to_crs(self.crs)
+        geo_df = gpd.read_file(file_path)
+        geo_df = geo_df.to_crs(crs)
         return geo_df
 
     def _area_rows_from_df(

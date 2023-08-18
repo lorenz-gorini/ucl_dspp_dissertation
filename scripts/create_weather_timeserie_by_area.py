@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 import xarray as xr
-
+from rioxarray.exceptions import NoDataInBounds
 from src.polygon_areas import PolygonAreasFromFile
 from src.timeserie_dataset import TimeSerieDataset, WeatherTimeSeriesEnum
 from src.timeserie_operations import (
@@ -15,6 +15,7 @@ from src.timeserie_operations import (
 )
 import shapely
 from joblib import Parallel, delayed
+import geopandas as gpd
 
 
 POST_ANALYSIS = False
@@ -32,6 +33,21 @@ raw_ts_data = raw_ts_data.apply(
     [TimeRangeClipOperation(start_time=f"1980-01-01", end_time="2019-12-31")]
 )
 
+# read shapefile
+country_shp = gpd.read_file(
+    "/mnt/c/Users/loreg/Documents/dissertation_data/world-administrative-boundaries"
+    "/world-administrative-boundaries.shp"
+)
+country_shp = country_shp.to_crs("EPSG:4326")
+europe_country_shp = country_shp[country_shp["continent"] == "Europe"]
+
+country_polygons = PolygonAreasFromFile(
+    column_name="name",
+    crs="EPSG:4326",
+    shapefile_path=None,
+    geo_df=europe_country_shp,
+).polygon_names_dict
+
 province_polygons = PolygonAreasFromFile(
     column_name="DEN_UTS",
     crs="EPSG:4326",
@@ -47,28 +63,32 @@ def get_province_temperature(
     province_name: str, year: int, polygon: shapely.Polygon, raw_ts_data: xr.Dataset
 ) -> xr.Dataset:
     print(f"Extracting time serie for {(province_name, year)}")
-    one_prov_one_year_ts = raw_ts_data.apply(
-        [
-            SetCRSOperation(crs="EPSG:4326"),
-            TimeRangeClipOperation(
-                start_time=f"{year}-01-01", end_time=f"{year}-12-31"
-            ),
-            AreaClipOperation(area=polygon),
-            CastToTypeOperation(
-                variable_name=WeatherTimeSeriesEnum.MEAN_TEMPERATURE.value,
-                dtype="float32",
-            ),
-            InterpolateOperation(target_resolution=0.03),
-            MeanAggregatorOverArea(),
-        ]
-    )
-    return one_prov_one_year_ts.to_dataframe()[
-        WeatherTimeSeriesEnum.MEAN_TEMPERATURE.value
-    ].rename(province_name)
+    try:
+        one_prov_one_year_ts = raw_ts_data.apply(
+            [
+                SetCRSOperation(crs="EPSG:4326"),
+                TimeRangeClipOperation(
+                    start_time=f"{year}-01-01", end_time=f"{year}-12-31"
+                ),
+                AreaClipOperation(area=polygon),
+                CastToTypeOperation(
+                    variable_name=WeatherTimeSeriesEnum.MEAN_TEMPERATURE.value,
+                    dtype="float32",
+                ),
+                InterpolateOperation(target_resolution=0.03),
+                MeanAggregatorOverArea(),
+            ]
+        )
+        return one_prov_one_year_ts.to_dataframe()[
+            WeatherTimeSeriesEnum.MEAN_TEMPERATURE.value
+        ].rename(province_name)
+    except NoDataInBounds:
+        print(f"No data for {(province_name, year)}")
+        return pd.Series(name=province_name)
 
 
 timeseries_per_prov = []
-for name, polygon in list(province_polygons.items()):
+for name, polygon in list(country_polygons.items()):
     one_prov_multi_year_list = Parallel(n_jobs=3, backend="loky")(
         delayed(get_province_temperature)(
             province_name=name, year=year, polygon=polygon, raw_ts_data=raw_ts_data

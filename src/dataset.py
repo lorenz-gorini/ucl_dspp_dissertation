@@ -18,7 +18,7 @@ class VariableSubset(enum.Enum):
 
 
 class TouristOrigin(enum.Enum):
-    ITALIAN = "ita"
+    ITALIANS = "ita"
     FOREIGNERS = "stra"
 
 
@@ -40,8 +40,10 @@ class MicroDataset:
         variable_subset: VariableSubset,
         tourist_origin: TouristOrigin,
         year: int,
-        raw_folder: Path,
-        processed_folder: Path,
+        raw_folder: Path = Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
+        processed_folder: Path = Path(
+            "/mnt/c/Users/loreg/Documents/dissertation_data/processed"
+        ),
     ) -> None:
         """
         Dataset class that handles downloading the file and loading it from disk
@@ -61,7 +63,7 @@ class MicroDataset:
             The subset of variables to use. Can be either ``VariableSubset.PRIMARY``,
             ``VariableSubset.SECONDARY`` or ``VariableSubset.EXPANSION_FACTORS``.
         tourist_origin : TouristOrigin
-            The origin of the tourists. Can be either ``TouristOrigin.ITALIAN`` or
+            The origin of the tourists. Can be either ``TouristOrigin.ITALIANS`` or
             ``TouristOrigin.FOREIGNERS``.
         year : int
             The year of the dataset. Can be any year between 1997 and 2023.

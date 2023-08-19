@@ -1,14 +1,14 @@
 import datetime
+from typing import Union
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import pyproj
 import rioxarray
 import shapely.geometry
 import xarray as xr
-from typing import Union
 from rioxarray.exceptions import NoDataInBounds
-import pyproj
 
 
 def compute_na_share(ds: Union[xr.DataArray, xr.Dataset]):

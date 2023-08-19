@@ -8,7 +8,7 @@ from bokeh.palettes import Category20, Turbo256
 from tqdm import tqdm
 
 from src.dataset import MicroDataset, TouristOrigin, VariableSubset
-from src.operations import CodeToLocationMapperFromCSV
+from src.dataset_operations import CodeToLocationMapperFromCSV
 
 # %%
 # Plot the same time series after grouping the travellers by their country of origin

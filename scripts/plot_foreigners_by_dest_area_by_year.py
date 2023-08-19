@@ -7,7 +7,7 @@ from bokeh.palettes import Category10
 from tqdm import tqdm
 
 from src.dataset import MicroDataset, TouristOrigin, VariableSubset
-from src.operations import CodeToLocationMapper
+from src.dataset_operations import CodeToLocationMapper
 
 # %%
 region_code_map = pd.read_csv(

@@ -1,8 +1,12 @@
 from pathlib import Path
 
+import geopandas as gpd
 import pandas as pd
+import shapely
 import xarray as xr
+from joblib import Parallel, delayed
 from rioxarray.exceptions import NoDataInBounds
+
 from src.polygon_areas import PolygonAreasFromFile
 from src.timeserie_dataset import TimeSerieDataset, WeatherTimeSeriesEnum
 from src.timeserie_operations import (
@@ -13,10 +17,6 @@ from src.timeserie_operations import (
     SetCRSOperation,
     TimeRangeClipOperation,
 )
-import shapely
-from joblib import Parallel, delayed
-import geopandas as gpd
-
 
 POST_ANALYSIS = False
 

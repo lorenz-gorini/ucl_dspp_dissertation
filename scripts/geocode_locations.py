@@ -16,7 +16,7 @@ import googlemaps
 from tqdm import tqdm
 
 from src.dataset import MicroDataset, TouristOrigin, VariableSubset
-from src.operations import (
+from src.dataset_operations import (
     CodeToLocationMapperFromCSV,
     CoordinateToElevationMapper,
     LocationToCoordinatesMapper,

@@ -1,11 +1,13 @@
 from __future__ import annotations
-import xarray as xr
-import numpy as np
-from typing import Literal
-import rioxarray
-import shapely
+
 import datetime
 from abc import ABC, abstractmethod
+from typing import Literal
+
+import numpy as np
+import rioxarray
+import shapely
+import xarray as xr
 
 
 class TimeSerieOperation(ABC):

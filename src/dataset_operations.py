@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Optional, Union, List, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
+import googlemaps
 import numpy as np
 import pandas as pd
 import requests
-import googlemaps
+from geopy.geocoders.base import Geocoder
 
 from .dataset import MicroDataset
-from geopy.geocoders.base import Geocoder
 
 
 class DatasetOperation(ABC):

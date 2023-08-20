@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 from abc import ABC, abstractmethod
-from typing import Literal
+from typing import Literal, List
 
 import numpy as np
 import rioxarray
@@ -51,6 +51,7 @@ class TimeResampleOperation(TimeSerieOperation):
     def __init__(self, freq: str) -> None:
         super().__init__()
         self.freq = freq
+        raise NotImplementedError
 
     def __call__(self, dataset: xr.Dataset) -> xr.Dataset:
         """
@@ -68,6 +69,7 @@ class TimeResampleOperation(TimeSerieOperation):
         """
         # TODO: check how and if this works
         # return dataset.resample(time=self.freq).mean()
+        raise NotImplementedError
 
 
 class InterpolateOperation(TimeSerieOperation):
@@ -225,32 +227,44 @@ class DropNAOperation(TimeSerieOperation):
         return dataset.dropna(dim=self.dim, how=self.how)
 
 
-class ValueAggregatorOverArea(TimeSerieOperation):
+class ValueAggregator(TimeSerieOperation):
+    def __init__(self, columns: List[str]) -> None:
+        """
+        Operation that aggregates the timeserie data by the given columns
+
+        Parameters
+        ----------
+        columns : List[str]
+            List of columns to aggregate the timeserie data by
+        """
+        super().__init__()
+        self.aggregate_cols = columns
+
     @abstractmethod
     def __call__(self, dataset: xr.Dataset) -> xr.Dataset:
         pass
 
 
-class MeanAggregatorOverArea(ValueAggregatorOverArea):
+class MeanAggregator(ValueAggregator):
     def __call__(self, dataset: xr.Dataset) -> xr.Dataset:
-        return dataset.mean(dim=["longitude", "latitude"])
+        return dataset.mean(dim=self.aggregate_cols)
 
 
-class SumAggregatorOverArea(ValueAggregatorOverArea):
+class SumAggregator(ValueAggregator):
     def __call__(self, dataset: xr.Dataset) -> xr.Dataset:
-        return dataset.sum(dim=["longitude", "latitude"])
+        return dataset.sum(dim=self.aggregate_cols)
 
 
-class MaxAggregatorOverArea(ValueAggregatorOverArea):
+class MaxAggregator(ValueAggregator):
     def __call__(self, dataset: xr.Dataset) -> xr.Dataset:
-        return dataset.max(dim=["longitude", "latitude"])
+        return dataset.max(dim=self.aggregate_cols)
 
 
-class MedianAggregatorOverArea(ValueAggregatorOverArea):
+class MedianAggregator(ValueAggregator):
     def __call__(self, dataset: xr.Dataset) -> xr.Dataset:
-        return dataset.median(dim=["longitude", "latitude"])
+        return dataset.median(dim=self.aggregate_cols)
 
 
-class StdAggregatorOverArea(ValueAggregatorOverArea):
+class StdAggregator(ValueAggregator):
     def __call__(self, dataset: xr.Dataset) -> xr.Dataset:
-        return dataset.std(dim=["longitude", "latitude"])
+        return dataset.std(dim=self.aggregate_cols)

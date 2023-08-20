@@ -13,7 +13,7 @@ from src.timeserie_operations import (
     AreaClipOperation,
     CastToTypeOperation,
     InterpolateOperation,
-    MeanAggregatorOverArea,
+    MeanAggregator,
     SetCRSOperation,
     TimeRangeClipOperation,
 )
@@ -76,7 +76,7 @@ def get_province_temperature(
                     dtype="float32",
                 ),
                 InterpolateOperation(target_resolution=0.03),
-                MeanAggregatorOverArea(),
+                MeanAggregator(columns=["latitude", "longitude"]),
             ]
         )
         return one_prov_one_year_ts.to_dataframe()[

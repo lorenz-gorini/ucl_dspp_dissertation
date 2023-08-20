@@ -95,7 +95,7 @@ class MicroDataset:
 
     @property
     def url(self) -> str:
-        if self.year == 2013:
+        if self.year == 2013 and self.tourist_origin == TouristOrigin.FOREIGNERS:
             # For some reason the 2013 files are not in the standard format
             return from_vars_to_2013_url_map[
                 f"{self.tourist_origin.value}-{self.variable_subset.value}"

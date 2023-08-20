@@ -9,7 +9,7 @@ import pandas as pd
 import rioxarray
 import xarray as xr
 
-from .timeserie_operations import TimeSerieOperation
+from .geotimeserie_operations import TimeSerieOperation
 
 
 class WeatherTimeSeriesEnum(enum.Enum):
@@ -21,7 +21,7 @@ class WeatherTimeSeriesEnum(enum.Enum):
     MAX_TEMPERATURE = "tx"
 
 
-class TimeSerieDataset(ABC):
+class GeoTimeSerieDataset(ABC):
     def __init__(
         self,
         timeserie_name: WeatherTimeSeriesEnum,
@@ -33,7 +33,7 @@ class TimeSerieDataset(ABC):
         ts_data: Optional[xr.Dataset] = None,
     ) -> None:
         """
-        Class representing a timeserie dataset
+        Class representing a timeserie dataset defined on a geographic grid
 
         Parameters
         ----------
@@ -108,7 +108,7 @@ class TimeSerieDataset(ABC):
     def apply(
         self,
         operations: List[TimeSerieOperation],
-    ) -> "TimeSerieDataset":
+    ) -> "GeoTimeSerieDataset":
         """
         Apply the given operations to the timeserie data
 
@@ -126,7 +126,7 @@ class TimeSerieDataset(ABC):
         for operation in operations:
             ts_data = operation(ts_data)
 
-        return TimeSerieDataset(
+        return GeoTimeSerieDataset(
             timeserie_name=self.ts_name,
             file_crs=self.crs,
             nc_file_folder=self.nc_file_folder,

@@ -8,8 +8,8 @@ from joblib import Parallel, delayed
 from rioxarray.exceptions import NoDataInBounds
 
 from src.polygon_areas import PolygonAreasFromFile
-from src.timeserie_dataset import TimeSerieDataset, WeatherTimeSeriesEnum
-from src.timeserie_operations import (
+from src.geotimeserie_dataset import TimeSerieDataset, WeatherTimeSeriesEnum
+from src.geotimeserie_operations import (
     AreaClipOperation,
     CastToTypeOperation,
     InterpolateOperation,

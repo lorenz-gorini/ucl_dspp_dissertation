@@ -10,13 +10,13 @@ import shapely
 import xarray as xr
 
 
-class TimeSerieOperation(ABC):
+class GeoTimeSerieOperation(ABC):
     @abstractmethod
     def __call__(self, dataset: xr.Dataset) -> xr.Dataset:
         pass
 
 
-class SetCRSOperation(TimeSerieOperation):
+class SetCRSOperation(GeoTimeSerieOperation):
     def __init__(self, crs: str) -> None:
         """
         Operation that sets the Coordinate Reference System of the timeserie data
@@ -47,7 +47,7 @@ class SetCRSOperation(TimeSerieOperation):
         return dataset
 
 
-class TimeResampleOperation(TimeSerieOperation):
+class TimeResampleOperation(GeoTimeSerieOperation):
     def __init__(self, freq: str) -> None:
         super().__init__()
         self.freq = freq
@@ -72,7 +72,7 @@ class TimeResampleOperation(TimeSerieOperation):
         raise NotImplementedError
 
 
-class InterpolateOperation(TimeSerieOperation):
+class InterpolateOperation(GeoTimeSerieOperation):
     def __init__(self, target_resolution: float = 0.01) -> None:
         super().__init__()
         self.target_resol = target_resolution
@@ -116,7 +116,7 @@ class InterpolateOperation(TimeSerieOperation):
         return ds_interp
 
 
-class CastToTypeOperation(TimeSerieOperation):
+class CastToTypeOperation(GeoTimeSerieOperation):
     def __init__(self, dtype: str, variable_name: str) -> None:
         """
         Operation that cast the timeserie dataset to a new type
@@ -150,7 +150,7 @@ class CastToTypeOperation(TimeSerieOperation):
         return dataset
 
 
-class AreaClipOperation(TimeSerieOperation):
+class AreaClipOperation(GeoTimeSerieOperation):
     def __init__(self, area: shapely.Polygon) -> None:
         super().__init__()
         self.area = area
@@ -177,7 +177,7 @@ class AreaClipOperation(TimeSerieOperation):
         return dataset.rio.clip([self.area])
 
 
-class TimeRangeClipOperation(TimeSerieOperation):
+class TimeRangeClipOperation(GeoTimeSerieOperation):
     def __init__(
         self, start_time: datetime.datetime, end_time: datetime.datetime
     ) -> None:
@@ -204,7 +204,7 @@ class TimeRangeClipOperation(TimeSerieOperation):
         return dataset.sel(time=slice(self.start_time, self.end_time))
 
 
-class DropNAOperation(TimeSerieOperation):
+class DropNAOperation(GeoTimeSerieOperation):
     def __init__(self, dim: str, how: Literal["any", "all"] = "any") -> None:
         super().__init__()
         self.dim = dim
@@ -227,7 +227,7 @@ class DropNAOperation(TimeSerieOperation):
         return dataset.dropna(dim=self.dim, how=self.how)
 
 
-class ValueAggregator(TimeSerieOperation):
+class ValueAggregator(GeoTimeSerieOperation):
     def __init__(self, columns: List[str]) -> None:
         """
         Operation that aggregates the timeserie data by the given columns

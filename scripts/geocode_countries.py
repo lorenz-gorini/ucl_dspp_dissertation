@@ -5,8 +5,8 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from src.dataset import MicroDataset, TouristOrigin, VariableSubset
-from src.dataset_operations import (
+from src.trip_dataset import TripDataset, TouristOrigin, VariableSubset
+from src.trip_operations import (
     CodeToLocationMapperFromCSV,
 )
 
@@ -25,7 +25,7 @@ code_mapper = CodeToLocationMapperFromCSV(
 # 2. Load the data by year and compute the aggregated values by year and
 # by country of origin
 for year in tqdm(range(1997, 2023, 1)):
-    dataset = MicroDataset(
+    dataset = TripDataset(
         variable_subset=VariableSubset.PRIMARY,
         tourist_origin=TouristOrigin.ITALIANS,
         year=year,

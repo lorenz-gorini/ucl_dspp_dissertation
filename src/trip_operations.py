@@ -8,10 +8,12 @@ import pandas as pd
 import requests
 from geopy.geocoders.base import Geocoder
 
-from .dataset import MicroDataset
+from .trip_dataset import TripDataset
+from .single_trip import SingleTrip
+from .single_trip_operations import SelectPeriodBeforeTripDate, AggregateTimeSerie
 
 
-class DatasetOperation(ABC):
+class TripDatasetOperation(ABC):
     def __init__(
         self,
         input_columns: List[str],
@@ -23,7 +25,7 @@ class DatasetOperation(ABC):
         self.force_repeat = force_repeat
 
     @abstractmethod
-    def __call__(self, dataset: MicroDataset) -> MicroDataset:
+    def __call__(self, dataset: TripDataset) -> TripDataset:
         pass
 
     @abstractmethod
@@ -31,7 +33,7 @@ class DatasetOperation(ABC):
         pass
 
 
-class CodeToLocationMapper(DatasetOperation):
+class CodeToStringMapper(TripDatasetOperation):
     def __init__(
         self,
         input_column: str,
@@ -46,7 +48,7 @@ class CodeToLocationMapper(DatasetOperation):
         )
         self.code_map = code_map
 
-    def __call__(self, dataset: MicroDataset) -> pd.DataFrame:
+    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
         new_df = dataset.df.copy()
         new_df[self.output_columns[0]] = new_df[self.input_columns[0]].map(
             self.code_map
@@ -59,12 +61,12 @@ class CodeToLocationMapper(DatasetOperation):
 
     def __str__(self) -> str:
         return (
-            f"CodeToLocationMapper({self.input_columns[0]}, {self.output_columns[0]}, "
+            f"CodeToStringMapper({self.input_columns[0]}, {self.output_columns[0]}, "
             f"{self.code_map})"
         )
 
 
-class CodeToLocationMapperFromCSV(DatasetOperation):
+class CodeToLocationMapperFromCSV(TripDatasetOperation):
     def __init__(
         self,
         input_column: str,
@@ -115,7 +117,7 @@ class CodeToLocationMapperFromCSV(DatasetOperation):
         # Load the CSV file with the location codes and names
         self._code_map_df = pd.read_csv(self.code_map_csv, sep=self.separator)
 
-    def __call__(self, dataset: MicroDataset) -> pd.DataFrame:
+    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
         # Turn the df into a dictionary mapping codes to names
         code_to_name_dict = {}
         for _, row in self._code_map_df.iterrows():
@@ -125,7 +127,7 @@ class CodeToLocationMapperFromCSV(DatasetOperation):
                 else row[self.location_name_column]
             )
 
-        new_df = CodeToLocationMapper(
+        new_df = CodeToStringMapper(
             input_column=self.input_columns[0],
             output_column=self.output_columns[0],
             code_map=code_to_name_dict,
@@ -139,7 +141,7 @@ class CodeToLocationMapperFromCSV(DatasetOperation):
         )
 
 
-class LocationToCoordinatesMapper(DatasetOperation):
+class LocationToCoordinatesMapper(TripDatasetOperation):
     def __init__(
         self,
         input_column: str,
@@ -296,7 +298,7 @@ class LocationToCoordinatesMapper(DatasetOperation):
         self.location_to_coords_df = pd.DataFrame(location_to_coords_dict)
         self.location_to_coords_df.to_csv(self.cache_df_path, index=False)
 
-    def __call__(self, dataset: MicroDataset) -> pd.DataFrame:
+    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
         """
         Geocode the locations in the dataset and add the coordinates to the dataset
 
@@ -309,7 +311,7 @@ class LocationToCoordinatesMapper(DatasetOperation):
 
         Parameters
         ----------
-        dataset : MicroDataset
+        dataset : TripDataset
             The dataset to geocode
 
         Returns
@@ -365,7 +367,7 @@ class LocationToCoordinatesMapper(DatasetOperation):
         )
 
 
-class CoordinateToElevationMapper(DatasetOperation):
+class CoordinateToElevationMapper(TripDatasetOperation):
     def __init__(
         self,
         dataset_lat_column: str,
@@ -383,13 +385,13 @@ class CoordinateToElevationMapper(DatasetOperation):
         self._url = "https://api.open-elevation.com/api/v1/lookup"
         self.coords_to_elevation_map_cache = {}
 
-    def __call__(self, dataset: MicroDataset) -> pd.DataFrame:
+    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
         """
         Find the elevation of the locations in the dataset and add this to the dataset
 
         Parameters
         ----------
-        dataset : MicroDataset
+        dataset : TripDataset
             The dataset to geocode
 
         Returns

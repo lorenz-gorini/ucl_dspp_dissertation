@@ -4,19 +4,20 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from src.dataset import MicroDataset, TouristOrigin, VariableSubset
+from src.trip_dataset import TripDataset, TouristOrigin, VariableSubset
 
+# %%
 our_total_df = []
 for origin in TouristOrigin:
     for year in tqdm(range(1997, 2020, 1)):
-        df_primary = MicroDataset(
+        df_primary = TripDataset(
             variable_subset=VariableSubset.PRIMARY,
             tourist_origin=origin,
             year=year,
             raw_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
         ).df
 
-        df_exp_factor = MicroDataset(
+        df_exp_factor = TripDataset(
             variable_subset=VariableSubset.EXPANSION_FACTORS,
             tourist_origin=origin,
             year=year,
@@ -46,7 +47,7 @@ for origin in TouristOrigin:
         our_total_df.append(
             {
                 "tourist_origin": origin,
-                "version": 1 if origin == TouristOrigin.ITALIAN else 2,
+                "version": 1 if origin == TouristOrigin.ITALIANS else 2,
                 "year": year,
                 "primary_samples": df_primary.shape[0],
                 "exp_factor_samples": df_exp_factor.shape[0],

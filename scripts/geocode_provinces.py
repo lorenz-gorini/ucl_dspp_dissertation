@@ -15,12 +15,14 @@ from pathlib import Path
 import googlemaps
 from tqdm import tqdm
 
-from src.dataset import MicroDataset, TouristOrigin, VariableSubset
-from src.dataset_operations import (
+from src.trip_dataset import TripDataset, TouristOrigin, VariableSubset
+from src.trip_operations import (
     CodeToLocationMapperFromCSV,
     CoordinateToElevationMapper,
+    CodeToStringMapper,
     LocationToCoordinatesMapper,
 )
+from src.single_trip_operations import TripVehicle
 
 code_mapper = CodeToLocationMapperFromCSV(
     input_column="PROVINCIA_VISITATA",
@@ -53,7 +55,7 @@ coord_to_elevation_mapper = CoordinateToElevationMapper(
 # by country of origin
 total_dfs_by_year = []
 for year in tqdm(range(1997, 2023, 1)):
-    dataset = MicroDataset(
+    dataset = TripDataset(
         variable_subset=VariableSubset.PRIMARY,
         tourist_origin=TouristOrigin.FOREIGNERS,
         year=year,

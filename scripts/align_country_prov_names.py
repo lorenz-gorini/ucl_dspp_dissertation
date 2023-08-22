@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.dataset import MicroDataset, TouristOrigin, VariableSubset
+from src.trip_dataset import TripDataset, TouristOrigin, VariableSubset
 
 # ================== Countries ==================
 timeseries_per_country_df = pd.read_csv(
     "/mnt/c/Users/loreg/Documents/dissertation_data/timeseries_per_country.csv"
 )
 # read tourism data
-country_2019_dataset = MicroDataset(
+country_2019_dataset = TripDataset(
     variable_subset=VariableSubset.PRIMARY,
     tourist_origin=TouristOrigin.ITALIANS,
     year=2019,
@@ -108,7 +108,7 @@ timeseries_per_prov_df = pd.read_csv(
 )
 
 # read tourism data
-province_2019_dataset = MicroDataset(
+province_2019_dataset = TripDataset(
     variable_subset=VariableSubset.PRIMARY,
     tourist_origin=TouristOrigin.FOREIGNERS,
     year=2019,

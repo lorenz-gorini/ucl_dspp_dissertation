@@ -5,12 +5,12 @@ from pathlib import Path
 
 from joblib import Parallel, delayed
 
-from src.dataset import MicroDataset, TouristOrigin, VariableSubset
+from src.trip_dataset import TripDataset, TouristOrigin, VariableSubset
 
 
 # function to call in parallel
 def download_file_function(variable_subset, tourist_origin, year, raw_folder):
-    file = MicroDataset(
+    file = TripDataset(
         variable_subset=variable_subset,
         tourist_origin=tourist_origin,
         year=year,
@@ -29,9 +29,7 @@ for var_subset in VariableSubset:
                 variable_subset=var_subset,
                 tourist_origin=origin,
                 year=year,
-                raw_folder=Path(
-                    "/mnt/c/Users/loreg/Documents/dissertation_data/raw"
-                ),
+                raw_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
             )
             for year in range(1997, 2022, 1)
         )

@@ -7,8 +7,8 @@ from bokeh.models import Legend
 from bokeh.palettes import Category20, Turbo256
 from tqdm import tqdm
 
-from src.dataset import MicroDataset, TouristOrigin, VariableSubset
-from src.dataset_operations import CodeToLocationMapperFromCSV
+from src.trip_dataset import TripDataset, TouristOrigin, VariableSubset
+from src.trip_operations import CodeToLocationMapperFromCSV
 
 # %%
 # Plot the same time series after grouping the travellers by their country of origin
@@ -27,7 +27,7 @@ code_mapper = CodeToLocationMapperFromCSV(
 # by country of origin
 total_dfs_by_year = []
 for year in tqdm(range(1997, 2023, 1)):
-    dataset = MicroDataset(
+    dataset = TripDataset(
         variable_subset=VariableSubset.PRIMARY,
         tourist_origin=TouristOrigin.FOREIGNERS,
         year=year,

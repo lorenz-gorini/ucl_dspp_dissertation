@@ -6,8 +6,8 @@ import pandas as pd
 from bokeh.palettes import Category10
 from tqdm import tqdm
 
-from src.dataset import MicroDataset, TouristOrigin, VariableSubset
-from src.dataset_operations import CodeToLocationMapper
+from src.trip_dataset import TripDataset, TouristOrigin, VariableSubset
+from src.trip_operations import CodeToStringMapper
 
 # %%
 region_code_map = pd.read_csv(
@@ -30,7 +30,7 @@ for macro_area, region_codes_single_area in macro_area_to_region_codes.items():
     for region_code in region_codes_single_area:
         region_code_to_macro_area_map[region_code] = macro_area
 
-code_mapper = CodeToLocationMapper(
+code_mapper = CodeToStringMapper(
     input_column="REGIONE_VISITATA",
     output_column="macroarea_visited",
     code_map=region_code_to_macro_area_map,
@@ -39,7 +39,7 @@ code_mapper = CodeToLocationMapper(
 # and number of trips changed over the years divided by country or by italian region
 total_dfs_by_year = []
 for year in tqdm(range(1997, 2023, 1)):
-    dataset = MicroDataset(
+    dataset = TripDataset(
         variable_subset=VariableSubset.PRIMARY,
         tourist_origin=TouristOrigin.FOREIGNERS,
         year=year,

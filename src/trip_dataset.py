@@ -34,7 +34,7 @@ from_vars_to_2013_url_map = {
 }
 
 
-class MicroDataset:
+class TripDataset:
     def __init__(
         self,
         variable_subset: VariableSubset,
@@ -144,12 +144,12 @@ class MicroDataset:
         with zipfile.ZipFile(file_stream) as zip_file:
             zip_file.extractall(output_folder)
 
-    def _add_operation(self, operation: "DatasetOperation") -> None:
+    def _add_operation(self, operation: "TripDatasetOperation") -> None:
         if "operations" not in self.df.columns:
             self._df["operations"] = None
         self._df.loc[len(self.operations), "operations"] = str(operation)
 
-    def _remove_operation(self, operation: "DatasetOperation") -> None:
+    def _remove_operation(self, operation: "TripDatasetOperation") -> None:
         if "operations" not in self.df.columns:
             self._df["operations"] = None
         self._df["operations"] = self._df["operations"].apply(
@@ -205,7 +205,7 @@ class MicroDataset:
             )
             os.rmdir(temp_folder)
 
-    def is_operation_applied(self, operation: "DatasetOperation") -> bool:
+    def is_operation_applied(self, operation: "TripDatasetOperation") -> bool:
         is_applied = str(operation) in self.operations
         if is_applied:
             # Check that all the output columns are in the dataframe
@@ -217,7 +217,7 @@ class MicroDataset:
                     )
         return is_applied
 
-    def apply(self, operation: "DatasetOperation") -> "MicroDataset":
+    def apply(self, operation: "TripDatasetOperation") -> "TripDataset":
         if operation.force_repeat is False and self.is_operation_applied(operation):
             print(f"Operation {str(operation)} already performed on dataset. Skipping")
         else:
@@ -230,5 +230,6 @@ class MicroDataset:
             self.save_df()
         return self
 
-    def __str__(self) -> str:
-        return str(self.raw_file_path)
+    def __repr__(self) -> str:
+        attr_str = ", ".join([f"{k}={v}" for k, v in self.__dict__.items()])
+        return f"TripDataset({attr_str})"

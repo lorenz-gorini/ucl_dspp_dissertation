@@ -5,10 +5,11 @@ import os
 import zipfile
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 import requests
+from sas7bdat import SAS7BDAT
 
 
 class VariableSubset(enum.Enum):
@@ -44,7 +45,7 @@ class TripDataset:
         processed_folder: Path = Path(
             "/mnt/c/Users/loreg/Documents/dissertation_data/processed"
         ),
-        column_to_dtype_map: Dict[str, Any] = {"CHIAVE": str},
+        column_to_dtype_map: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Dataset class that handles downloading the file and loading it from disk
@@ -74,14 +75,16 @@ class TripDataset:
         processed_folder : Path
             The folder where the processed file will be saved. If it doesn't exist, it
             will be created.
-        column_to_dtype_map : Dict[str, Any]
+        column_to_dtype_map : Dict[str, Any], optional
             A dictionary that maps column names to their data type. This is useful
             because some columns are not correctly parsed by pandas, so we can force
-            the correct data type. The default is ``{"CHIAVE": str}``, because the
-            ``CHIAVE`` column is a very long int, much longer than the maximum size of
-            Int64. In case, (year==2018 and tourist_origin==TouristOrigin.FOREIGNERS),
+            the correct data type. When set to None, it will
+            be automatically set to ``{"CHIAVE": str}``, because in the trip datasets
+            the ``CHIAVE`` column is a very long int, much longer than the maximum
+            size of Int64. In case where
+            (year==2018 and tourist_origin==TouristOrigin.FOREIGNERS)
             the "CHIAVE" key will be automatically replaced with "chiave" due to
-            inconsistency of the raw data.
+            inconsistency of the raw data. Default is None.
         """
         self.variable_subset = variable_subset
         self.tourist_origin = tourist_origin
@@ -96,7 +99,14 @@ class TripDataset:
 
         self.raw_folder.mkdir(parents=True, exist_ok=True)
         self.processed_folder.mkdir(parents=True, exist_ok=True)
-        self.raw_file_path = self.raw_folder / f"{self.file_name}.csv"
+        if (
+            self.year == 2013
+            and self.tourist_origin == TouristOrigin.FOREIGNERS
+            and self.variable_subset == VariableSubset.SECONDARY
+        ):
+            self.raw_file_path = self.raw_folder / f"{self.file_name}.sas7bdat"
+        else:
+            self.raw_file_path = self.raw_folder / f"{self.file_name}.csv"
         self.processed_file_path = self.processed_folder / f"{self.file_name}.csv"
 
         # Replace the "CHIAVE" key with "chiave" if year==2018
@@ -109,7 +119,7 @@ class TripDataset:
 
     @property
     def url(self) -> str:
-        if self.year == 2013 and self.tourist_origin == TouristOrigin.FOREIGNERS:
+        if self.year == 2013:
             # For some reason the 2013 files are not in the standard format
             return from_vars_to_2013_url_map[
                 f"{self.tourist_origin.value}-{self.variable_subset.value}"
@@ -148,6 +158,8 @@ class TripDataset:
                 self._df = pd.read_csv(
                     self.raw_file_path, dtype=self.column_to_dtype_map
                 )
+            if "chiave" in self._df.columns:
+                self._df.rename(columns={"chiave": "CHIAVE"}, inplace=True)
         return self._df
 
     @property
@@ -201,27 +213,46 @@ class TripDataset:
         """
         self._df.to_csv(self.processed_file_path, index=False)
 
-    def download(self) -> None:
+    def download(self, force: bool = False) -> None:
         # Download the file
-        if self.raw_file_path.exists():
+        if not force and self.raw_file_path.exists():
             print(f"File {self.raw_file_path} already exists. Skipping download")
             return
         else:
             print(f"Downloading from {self.url}")
 
-            temp_folder = self._temp_path / self.file_name
+            temp_extract_folder = self._temp_path / self.file_name
             with requests.get(
                 self.url, allow_redirects=True, stream=True
             ) as url_file_stream:
                 self._unzip_file_from_stream(
                     BytesIO(url_file_stream.content),
-                    output_folder=temp_folder,
+                    output_folder=temp_extract_folder,
                 )
-            self._move_single_file(
-                input_folder=temp_folder,
-                destination_file=self.raw_file_path,
-            )
-            os.rmdir(temp_folder)
+            if (
+                self.year == 2013
+                and self.tourist_origin == TouristOrigin.FOREIGNERS
+                and self.variable_subset == VariableSubset.SECONDARY
+            ):
+                # Special case: In 2013 at the CSV URL, a SAS file List file in the extracted folder
+                extracted_files = os.listdir(temp_extract_folder)
+                if len(extracted_files) != 1:
+                    raise ValueError(
+                        f"Found unexpected number of files in the extracted folder:"
+                        f" {extracted_files}"
+                    )
+                with SAS7BDAT(path=str(temp_extract_folder / extracted_files[0])) as f:
+                    df = f.to_data_frame()
+
+                df.to_csv(self.raw_file_path, index=False)
+                # Remove file inside folder, or ``os.rmdir`` will not work
+                os.remove(temp_extract_folder / extracted_files[0])
+            else:
+                self._move_single_file(
+                    input_folder=temp_extract_folder,
+                    destination_file=self.raw_file_path,
+                )
+            os.rmdir(temp_extract_folder)
 
     def is_operation_applied(self, operation: "TripDatasetOperation") -> bool:
         is_applied = str(operation) in self.operations

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 from abc import ABC, abstractmethod
-from typing import Literal, List
+from typing import List, Literal
 
 import numpy as np
 import rioxarray

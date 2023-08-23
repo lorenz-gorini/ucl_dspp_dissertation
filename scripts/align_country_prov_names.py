@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.trip_dataset import TripDataset, TouristOrigin, VariableSubset
+from src.trip_dataset import TouristOrigin, TripDataset, VariableSubset
 
 # ================== Countries ==================
 timeseries_per_country_df = pd.read_csv(

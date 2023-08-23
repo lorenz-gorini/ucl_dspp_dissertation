@@ -6,7 +6,7 @@ import pandas as pd
 from bokeh.palettes import Category10
 from tqdm import tqdm
 
-from src.trip_dataset import TripDataset, TouristOrigin, VariableSubset
+from src.trip_dataset import TouristOrigin, TripDataset, VariableSubset
 from src.trip_operations import CodeToStringMapper
 
 # %%

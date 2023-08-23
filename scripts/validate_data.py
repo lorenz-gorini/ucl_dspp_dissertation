@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from src.trip_dataset import TripDataset, TouristOrigin, VariableSubset
+from src.trip_dataset import TouristOrigin, TripDataset, VariableSubset
 
 # %%
 our_total_df = []

@@ -7,7 +7,6 @@ import xarray as xr
 from joblib import Parallel, delayed
 from rioxarray.exceptions import NoDataInBounds
 
-from src.polygon_areas import PolygonAreasFromFile
 from src.geotimeserie_dataset import TimeSerieDataset, WeatherTimeSeriesEnum
 from src.geotimeserie_operations import (
     AreaClipOperation,
@@ -17,6 +16,7 @@ from src.geotimeserie_operations import (
     SetCRSOperation,
     TimeRangeClipOperation,
 )
+from src.polygon_areas import PolygonAreasFromFile
 
 POST_ANALYSIS = False
 

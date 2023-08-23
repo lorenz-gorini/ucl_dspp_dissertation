@@ -7,7 +7,7 @@ from bokeh.models import Legend
 from bokeh.palettes import Category20, Turbo256
 from tqdm import tqdm
 
-from src.trip_dataset import TripDataset, TouristOrigin, VariableSubset
+from src.trip_dataset import TouristOrigin, TripDataset, VariableSubset
 from src.trip_operations import CodeToLocationMapperFromCSV
 
 # %%

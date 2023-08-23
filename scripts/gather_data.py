@@ -5,7 +5,7 @@ from pathlib import Path
 
 from joblib import Parallel, delayed
 
-from src.trip_dataset import TripDataset, TouristOrigin, VariableSubset
+from src.trip_dataset import TouristOrigin, TripDataset, VariableSubset
 
 
 # function to call in parallel

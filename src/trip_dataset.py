@@ -46,6 +46,7 @@ class TripDataset:
             "/mnt/c/Users/loreg/Documents/dissertation_data/processed"
         ),
         column_to_dtype_map: Optional[Dict[str, Any]] = None,
+        force_raw: bool = False,
     ) -> None:
         """
         Dataset class that handles downloading the file and loading it from disk
@@ -85,6 +86,9 @@ class TripDataset:
             (year==2018 and tourist_origin==TouristOrigin.FOREIGNERS)
             the "CHIAVE" key will be automatically replaced with "chiave" due to
             inconsistency of the raw data. Default is None.
+        force_raw : bool
+            If True, the dataset will be loaded in "raw" version from ``raw_folder``,
+            even if it is present in the ``processed_folder``. The default is False.
         """
         self.variable_subset = variable_subset
         self.tourist_origin = tourist_origin
@@ -108,6 +112,7 @@ class TripDataset:
         else:
             self.raw_file_path = self.raw_folder / f"{self.file_name}.csv"
         self.processed_file_path = self.processed_folder / f"{self.file_name}.csv"
+        self.force_raw = force_raw
 
         if column_to_dtype_map is None:
             column_to_dtype_map = {"CHIAVE": str}
@@ -150,7 +155,7 @@ class TripDataset:
     @property
     def df(self) -> pd.DataFrame:
         if self._df is None:
-            if self.processed_file_path.exists():
+            if not self.force_raw and self.processed_file_path.exists():
                 self._df = pd.read_csv(
                     self.processed_file_path, dtype=self.column_to_dtype_map
                 )

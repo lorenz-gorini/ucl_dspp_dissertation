@@ -5,7 +5,7 @@ import os
 import zipfile
 from io import BytesIO
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 import pandas as pd
 import requests

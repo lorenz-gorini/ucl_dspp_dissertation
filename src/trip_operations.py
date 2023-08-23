@@ -7,10 +7,11 @@ import numpy as np
 import pandas as pd
 import requests
 from geopy.geocoders.base import Geocoder
+from tqdm import tqdm
 
+from .single_trip import SingleTrip, TripVehicle
+from .single_trip_operations import AggregateTimeSerie, SelectPeriodBeforeTripDate
 from .trip_dataset import TripDataset
-from .single_trip import SingleTrip
-from .single_trip_operations import SelectPeriodBeforeTripDate, AggregateTimeSerie
 
 
 class TripDatasetOperation(ABC):
@@ -25,11 +26,11 @@ class TripDatasetOperation(ABC):
         self.force_repeat = force_repeat
 
     @abstractmethod
-    def __call__(self, dataset: TripDataset) -> TripDataset:
+    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
         pass
 
     @abstractmethod
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         pass
 
 
@@ -54,12 +55,19 @@ class CodeToStringMapper(TripDatasetOperation):
             self.code_map
         )
         print(
-            "The codes not associated to a name are: "
+            "The codes not associated to a name based on the provided ``code_map`` are "
             + str(new_df[self.output_columns[0]].isna().sum())
+            + " and they are:"
+            # Show which codes could not be associated to a name
+            + str(
+                new_df[new_df[self.output_columns[0]].isna()][
+                    self.input_columns[0]
+                ].unique()
+            )
         )
         return new_df
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return (
             f"CodeToStringMapper({self.input_columns[0]}, {self.output_columns[0]}, "
             f"{self.code_map})"
@@ -134,7 +142,7 @@ class CodeToLocationMapperFromCSV(TripDatasetOperation):
         )(dataset)
         return new_df
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return (
             f"CodeToLocationMapperFromCSV({self.input_columns[0]}, {self.output_columns[0]}, "
             f"{self.code_map_csv}, {self.code_column_csv}, {self.location_name_column})"
@@ -359,7 +367,7 @@ class LocationToCoordinatesMapper(TripDatasetOperation):
         )
         return new_df
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return (
             f"LocationToCoordinatesMapper({self.input_columns[0]},"
             f" {self.output_latit_column}, {self.output_longit_column} "
@@ -461,8 +469,123 @@ class CoordinateToElevationMapper(TripDatasetOperation):
 
         return new_df
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return (
             f"CoordinateToElevationMapper({self.dataset_lat_column},"
             f" {self.dataset_long_column}, {self.output_columns})"
+        )
+
+
+class WeatherIndexCreator(TripDatasetOperation):
+    def __init__(
+        self,
+        weather_df: pd.DataFrame,
+        trip_destination_column: str,
+        trip_date_column: str,
+        output_column: str = "weather_index",
+        force_repeat: bool = False,
+    ):
+        """
+        Create a weather index for each trip in the dataset
+
+        Parameters
+        ----------
+        weather_df : pd.DataFrame
+            The dataframe containing the weather timeseries. Note that this must have
+            a column named "DATE" containing the dates of the timeseries, and the other
+            columns must be location names (e.g. "Milan") containing the weather
+            timeseries. The location names must be the same as the ones in the
+            ``destination_column`` of the dataset.
+        """
+        super().__init__(
+            input_columns=[trip_destination_column, trip_date_column],
+            output_columns=[output_column],
+            force_repeat=force_repeat,
+        )
+        self.weather_df = weather_df
+        self.trip_location_column = trip_destination_column
+        self.trip_date_column = trip_date_column
+
+
+
+class WeatherIndexPerTripCreator(WeatherIndexCreator):
+    def __init__(
+        self,
+        weather_df: pd.DataFrame,
+        select_weather_period_operation: SelectPeriodBeforeTripDate,
+        aggregate_timeserie_operation: AggregateTimeSerie,
+        trip_destination_column: str,
+        trip_date_column: str,
+        output_column: str = "weather_index",
+        force_repeat: bool = False,
+        vehicle_column: str = "FLAG_LOCALITA_mapped",
+    ):
+        super().__init__(
+            weather_df=weather_df,
+            trip_destination_column=trip_destination_column,
+            trip_date_column=trip_date_column,
+            output_column=output_column,
+            force_repeat=force_repeat,
+        )
+        self.input_columns += [vehicle_column]
+        self.select_weather_period_operation = select_weather_period_operation
+        self.aggregate_timeserie_operation = aggregate_timeserie_operation
+        self.vehicle_column = vehicle_column
+
+    def _compute_weather_index(self, row: pd.Series) -> float:
+        """
+        Add the weather index to the row
+
+        Parameters
+        ----------
+        row : pd.Series
+            The row to add the weather index to
+        """
+        if pd.isna(row[self.trip_location_column]) or pd.isna(
+            row[self.trip_date_column]
+        ):
+            return pd.NA
+        else:
+            # Create a SingleTrip object
+            single_trip = SingleTrip(
+                index=row.name,
+                destination=row[self.trip_location_column],
+                start_date=row[self.trip_date_column],
+                trip_vehicle=(
+                    None
+                    if pd.isna(row[self.vehicle_column])
+                    else TripVehicle(row[self.vehicle_column])
+                ),
+            )
+
+            single_trip = self.select_weather_period_operation(single_trip)
+            single_trip = self.aggregate_timeserie_operation(single_trip)
+            return single_trip[self.aggregate_timeserie_operation.output_attribute]
+
+    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
+        """
+        Add a column with the weather index.
+
+        Parameters
+        ----------
+        dataset : TripDataset
+            The dataset to add the weather index to
+        """
+        # Convert date column (with format yyyymmdd to datetime with pd.to_datetime)
+        dataset.df[self.trip_date_column] = pd.to_datetime(
+            dataset.df[self.trip_date_column], format="%Y%m%d"
+        )
+
+        tqdm.pandas()
+        # Apply function to each row
+        dataset.df[self.output_columns[0]] = dataset.df.progress_apply(
+            self._compute_weather_index, axis=1
+        )
+        return dataset.df
+
+    def __repr__(self) -> str:
+        return (
+            f"WeatherIndexPerTripCreator({self.select_weather_period_operation},"
+            f" {self.aggregate_timeserie_operation}, {self.trip_location_column},"
+            f" {self.trip_date_column}, {self.output_columns}, {self.vehicle_column})"
         )

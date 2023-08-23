@@ -109,6 +109,8 @@ class TripDataset:
             self.raw_file_path = self.raw_folder / f"{self.file_name}.csv"
         self.processed_file_path = self.processed_folder / f"{self.file_name}.csv"
 
+        if column_to_dtype_map is None:
+            column_to_dtype_map = {"CHIAVE": str}
         # Replace the "CHIAVE" key with "chiave" if year==2018
         if self.year == 2018 and tourist_origin == TouristOrigin.FOREIGNERS:
             column_to_dtype_map["chiave"] = column_to_dtype_map.pop("CHIAVE")

@@ -5,7 +5,7 @@ import os
 import zipfile
 from io import BytesIO
 from pathlib import Path
-from typing import List
+from typing import List, Dict, Any
 
 import pandas as pd
 import requests
@@ -44,6 +44,7 @@ class TripDataset:
         processed_folder: Path = Path(
             "/mnt/c/Users/loreg/Documents/dissertation_data/processed"
         ),
+        column_to_dtype_map: Dict[str, Any] = {"CHIAVE": str},
     ) -> None:
         """
         Dataset class that handles downloading the file and loading it from disk
@@ -73,6 +74,14 @@ class TripDataset:
         processed_folder : Path
             The folder where the processed file will be saved. If it doesn't exist, it
             will be created.
+        column_to_dtype_map : Dict[str, Any]
+            A dictionary that maps column names to their data type. This is useful
+            because some columns are not correctly parsed by pandas, so we can force
+            the correct data type. The default is ``{"CHIAVE": str}``, because the
+            ``CHIAVE`` column is a very long int, much longer than the maximum size of
+            Int64. In case, (year==2018 and tourist_origin==TouristOrigin.FOREIGNERS),
+            the "CHIAVE" key will be automatically replaced with "chiave" due to
+            inconsistency of the raw data.
         """
         self.variable_subset = variable_subset
         self.tourist_origin = tourist_origin
@@ -89,6 +98,11 @@ class TripDataset:
         self.processed_folder.mkdir(parents=True, exist_ok=True)
         self.raw_file_path = self.raw_folder / f"{self.file_name}.csv"
         self.processed_file_path = self.processed_folder / f"{self.file_name}.csv"
+
+        # Replace the "CHIAVE" key with "chiave" if year==2018
+        if self.year == 2018 and tourist_origin == TouristOrigin.FOREIGNERS:
+            column_to_dtype_map["chiave"] = column_to_dtype_map.pop("CHIAVE")
+        self.column_to_dtype_map = column_to_dtype_map
 
         self._temp_path = Path(".")
         self._df = None
@@ -125,11 +139,15 @@ class TripDataset:
     def df(self) -> pd.DataFrame:
         if self._df is None:
             if self.processed_file_path.exists():
-                self._df = pd.read_csv(self.processed_file_path)
+                self._df = pd.read_csv(
+                    self.processed_file_path, dtype=self.column_to_dtype_map
+                )
             else:
                 if not self.raw_file_path.exists():
                     self.download()
-                self._df = pd.read_csv(self.raw_file_path)
+                self._df = pd.read_csv(
+                    self.raw_file_path, dtype=self.column_to_dtype_map
+                )
         return self._df
 
     @property

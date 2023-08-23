@@ -9,13 +9,21 @@ from src.trip_dataset import TripDataset, TouristOrigin, VariableSubset
 
 
 # function to call in parallel
-def download_file_function(variable_subset, tourist_origin, year, raw_folder):
+def download_file_function(
+    variable_subset,
+    tourist_origin,
+    year,
+    raw_folder,
+    processed_folder,
+    column_to_dtype_map,
+):
     file = TripDataset(
         variable_subset=variable_subset,
         tourist_origin=tourist_origin,
         year=year,
         raw_folder=raw_folder,
-        processed_folder=None,
+        processed_folder=processed_folder,
+        column_to_dtype_map=column_to_dtype_map,
     )
     file.download()
 
@@ -30,6 +38,10 @@ for var_subset in VariableSubset:
                 tourist_origin=origin,
                 year=year,
                 raw_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
+                processed_folder=Path(
+                    "/mnt/c/Users/loreg/Documents/dissertation_data/processed"
+                ),
+                column_to_dtype_map={"CHIAVE": str},
             )
             for year in range(1997, 2022, 1)
         )

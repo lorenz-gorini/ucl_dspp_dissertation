@@ -5,7 +5,7 @@ import os
 import zipfile
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 import requests
@@ -57,7 +57,7 @@ class TripDataset:
         it when needed and save it in the ``raw_folder``. Similarly, everytime a new
         operation is performed, the resulting dataset is saved in ``processed_folder``,
         because it is assumed that every operation is improving the dataset.
-        Every operation name and parameter is saved in a new column called "operation"
+        Every operation name and parameter is saved in a new column called "operations"
         and the list can also be accessed with the ``operations`` class property.
 
         Parameters
@@ -165,14 +165,18 @@ class TripDataset:
                 self._df = pd.read_csv(
                     self.raw_file_path, dtype=self.column_to_dtype_map
                 )
+                if "operations" in self.df.columns:
+                    raise ValueError(
+                        "The raw file should not have an 'operations' column"
+                    )
+                else:
+                    self._df["operations"] = None
             if "chiave" in self._df.columns:
                 self._df.rename(columns={"chiave": "CHIAVE"}, inplace=True)
         return self._df
 
     @property
     def operations(self) -> List[str]:
-        if "operations" not in self.df.columns:
-            self._df["operations"] = None
         return self.df[~self.df["operations"].isna()]["operations"].to_list()
 
     @staticmethod
@@ -182,16 +186,18 @@ class TripDataset:
             zip_file.extractall(output_folder)
 
     def _add_operation(self, operation: "TripDatasetOperation") -> None:
-        if "operations" not in self.df.columns:
-            self._df["operations"] = None
         self._df.loc[len(self.operations), "operations"] = str(operation)
 
     def _remove_operation(self, operation: "TripDatasetOperation") -> None:
-        if "operations" not in self.df.columns:
-            self._df["operations"] = None
         self._df["operations"] = self._df["operations"].apply(
             lambda x: None if x == str(operation) else x
         )
+
+    def _restore_operations(
+        self, operations: List[Union[str, "TripDatasetOperation"]]
+    ) -> None:
+        for index, operation in enumerate(operations):
+            self._df.loc[index, "operations"] = str(operation)
 
     def _move_single_file(self, input_folder: Path, destination_file: Path) -> None:
         # Check if there is more than one file in the extracted folder
@@ -280,12 +286,19 @@ class TripDataset:
             if operation.force_repeat is True:
                 self._remove_operation(operation)
 
+            # Need to cache the operations, because applying the ``operation``
+            # may drop some rows containing previous operations already applied
+            operation_cache = self.operations
             print(f"Applying operation {str(operation)} to dataset")
             self._df = operation(self)
+            # Restore the operation list by writing them on the new dataset
+            self._restore_operations(operation_cache)
             self._add_operation(operation)
             self.save_df()
         return self
 
     def __repr__(self) -> str:
-        attr_str = ", ".join([f"{k}={v}" for k, v in self.__dict__.items()])
+        attributes = self.__dict__.copy()
+        attributes.pop("_df")
+        attr_str = ", ".join([f"{k}={v}" for k, v in attributes.items()])
         return f"TripDataset({attr_str})"

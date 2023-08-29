@@ -67,10 +67,14 @@ province_polygons = PolygonAreasFromFile(
 ).polygon_names_dict
 
 
-def get_province_temperature(
-    province_name: str, year: int, polygon: shapely.Polygon, raw_ts_data: xr.Dataset
+def get_location_temperature(
+    location_type: str,
+    location_name: str,
+    year: int,
+    polygon: shapely.Polygon,
+    raw_ts_data: xr.Dataset,
 ) -> xr.Dataset:
-    print(f"Extracting time serie for {(province_name, year)}")
+    print(f"Extracting time serie for {(location_name, year)}")
     try:
         minx, miny, maxx, maxy = polygon.bounds
         exterior_polygon = shapely.Polygon(
@@ -98,55 +102,60 @@ def get_province_temperature(
         )
         return one_prov_one_year_ts.to_dataframe()[
             WeatherTimeSeriesEnum.MEAN_TEMPERATURE.value
-        ].rename(province_name)
+        ].rename(location_name)
     except NoDataInBounds:
-        print(f"No data for {(province_name, year)}")
-        return pd.Series(name=province_name)
+        print(f"No data for {(location_name, year)}")
+        return pd.Series(name=location_name)
 
 
 for location_type, polygons_per_location in [
     ("country", country_polygons),
     ("province", province_polygons),
 ]:
-    timeseries_per_prov = []
+    timeseries_per_locat = []
     for name, polygon in list(polygons_per_location.items()):
         # I need to analye each year separately because the data is too big, so I first
         # need to slice the timeseries for each year and then combine them
-        one_prov_multi_year_list = Parallel(n_jobs=3, backend="loky")(
-            delayed(get_province_temperature)(
-                province_name=name, year=year, polygon=polygon, raw_ts_data=raw_ts_data
+        one_locat_multi_year_list = Parallel(n_jobs=3, backend="loky")(
+            delayed(get_location_temperature)(
+                location_type=location_type,
+                location_name=name,
+                year=year,
+                polygon=polygon,
+                raw_ts_data=raw_ts_data,
             )
             for year in range(1997, 2020)
         )
         # Combine the timeseries of each year into a single pd.Series
-        single_prov_ts_serie = pd.concat(one_prov_multi_year_list, axis=0)
-        timeseries_per_prov.append(single_prov_ts_serie)
+        single_prov_ts_serie = pd.concat(one_locat_multi_year_list, axis=0)
+        timeseries_per_locat.append(single_prov_ts_serie)
 
-    timeseries_per_prov_df = pd.DataFrame(timeseries_per_prov).T
-    timeseries_per_prov_df.index = pd.to_datetime(timeseries_per_prov_df.index)
-    timeseries_per_prov_df.reset_index(inplace=True, drop=False)
-    timeseries_per_prov_df.rename(columns={"index": "date"}, inplace=True)
+    timeseries_per_locat_df = pd.DataFrame(timeseries_per_locat).T
+    timeseries_per_locat_df.index = pd.to_datetime(timeseries_per_locat_df.index)
+    timeseries_per_locat_df.reset_index(inplace=True, drop=False)
+    timeseries_per_locat_df.rename(columns={"index": "date"}, inplace=True)
+
     file_path = (
         "/mnt/c/Users/loreg/Documents/dissertation_data/"
         f"timeseries_per_{location_type}.csv"
     )
-    timeseries_per_prov_df.to_csv(file_path, index=False)
+    timeseries_per_locat_df.to_csv(file_path, index=False)
 
 
 if POST_ANALYSIS:
     timeserie_name = WeatherTimeSeriesEnum.MEAN_TEMPERATURE
     location_type = "province"
-    timeseries_per_prov_df = pd.read_csv(
+    timeseries_per_locat_df = pd.read_csv(
         "/mnt/c/Users/loreg/Documents/dissertation_data/"
         f"timeserie_{timeserie_name.value}_per_{location_type}.csv"
     )
-    timeseries_per_prov_df.T.plot()
+    timeseries_per_locat_df.T.plot()
     # count nan values and sort by number of nan values
-    timeseries_per_prov_df.isna().sum(axis=0).sort_values(ascending=False)
+    timeseries_per_locat_df.isna().sum(axis=0).sort_values(ascending=False)
 
     # Groupby the combination of (month, year) (contained in the index datetime) and get the mean temperature for each month
-    df_by_year_month = timeseries_per_prov_df.groupby(
-        [timeseries_per_prov_df.time.year, timeseries_per_prov_df.time.month]
+    df_by_year_month = timeseries_per_locat_df.groupby(
+        [timeseries_per_locat_df.time.year, timeseries_per_locat_df.time.month]
     ).mean()
     # Combine the month and year into a single datetime
     df_by_year_month.time = pd.to_datetime(
@@ -157,7 +166,9 @@ if POST_ANALYSIS:
     df_by_year_month.plot()
 
     # Groupby year (contained in the index datetime) and get the mean temperature for each year
-    df_by_year = timeseries_per_prov_df.groupby(timeseries_per_prov_df.time.year).mean()
+    df_by_year = timeseries_per_locat_df.groupby(
+        timeseries_per_locat_df.time.year
+    ).mean()
     df_by_year.index = pd.to_datetime(df_by_year.time.astype(str))
     # Drop time column
     df_by_year.drop(columns=["time"], inplace=True)

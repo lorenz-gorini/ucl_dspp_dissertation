@@ -43,12 +43,6 @@ datetime_converter = ToDatetimeConverter(
 
 # ============== European tourists to Italy ==============
 
-select_european_tourists_to_italy = FilterCountries(
-    country_column="STATO_RESIDENZA_mapped",
-    countries=timeseries_per_country_df.columns,
-    force_repeat=False,
-)
-
 visited_province_index_creator = MultipleWeatherIndexCreator(
     trip_location_column="PROVINCIA_VISITATA_mapped",
     trip_date_column="DATA_INIZ_VIAGGIO_computed",  # DATA_INIZ_VIAGGIO_computed
@@ -93,11 +87,6 @@ residence_country_index_creator = MultipleWeatherIndexCreator(
 )
 
 # ============== Italian tourists to Europe ==============
-select_italian_tourists_to_europe = FilterCountries(
-    country_column="STATO_VISITATO_mapped",
-    countries=timeseries_per_country_df.columns.to_list(),
-    force_repeat=False,
-)
 
 visited_country_index_creator = MultipleWeatherIndexCreator(
     trip_location_column="STATO_VISITATO_mapped",
@@ -121,6 +110,7 @@ visited_country_index_creator = MultipleWeatherIndexCreator(
         },
     ),
 )
+
 residence_province_index_creator = MultipleWeatherIndexCreator(
     trip_location_column="PROV_RESIDENZA_mapped",
     trip_date_column="DATA_INIZ_VIAGGIO_computed",  # DATA_INIZ_VIAGGIO_computed
@@ -161,12 +151,9 @@ for tourist_origin in [
         )
         dataset.apply(datetime_converter)
         if tourist_origin == TouristOrigin.ITALIANS:
-            dataset.apply(select_italian_tourists_to_europe)
             dataset.apply(visited_country_index_creator)
-            dataset.apply(replace_prov_names_by_map)
             dataset.apply(residence_province_index_creator)
         else:
-            dataset.apply(select_european_tourists_to_italy)
             dataset.apply(visited_province_index_creator)
             dataset.apply(residence_country_index_creator)
 
@@ -185,11 +172,9 @@ for tourist_origin in [
             )
             dataset.apply(datetime_converter)
             if tourist_origin == TouristOrigin.ITALIANS:
-                dataset.apply(select_italian_tourists_to_europe)
                 dataset.apply(visited_country_index_creator)
                 dataset.apply(residence_province_index_creator)
             else:
-                dataset.apply(select_european_tourists_to_italy)
                 dataset.apply(visited_province_index_creator)
                 dataset.apply(residence_country_index_creator)
 

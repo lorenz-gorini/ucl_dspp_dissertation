@@ -7,7 +7,7 @@ import xarray as xr
 from joblib import Parallel, delayed
 from rioxarray.exceptions import NoDataInBounds
 
-from src.geotimeserie_dataset import TimeSerieDataset, WeatherTimeSeriesEnum
+from src.geotimeserie_dataset import GeoTimeSerieDataset, WeatherTimeSeriesEnum
 from src.geotimeserie_operations import (
     AreaClipOperation,
     CastToTypeOperation,
@@ -19,9 +19,10 @@ from src.geotimeserie_operations import (
 from src.polygon_areas import PolygonAreasFromFile
 
 POST_ANALYSIS = False
+timeserie_name = WeatherTimeSeriesEnum.MEAN_TEMPERATURE
 
-raw_ts_data = TimeSerieDataset(
-    timeserie_name=WeatherTimeSeriesEnum.MEAN_TEMPERATURE,
+raw_ts_data = GeoTimeSerieDataset(
+    timeserie_name=timeserie_name,
     file_crs="EPSG:4326",
     nc_file_folder=Path(
         "/mnt/c/Users/loreg/Documents/dissertation_data/"
@@ -87,29 +88,40 @@ def get_province_temperature(
         return pd.Series(name=province_name)
 
 
-timeseries_per_prov = []
-for name, polygon in list(country_polygons.items()):
-    one_prov_multi_year_list = Parallel(n_jobs=3, backend="loky")(
-        delayed(get_province_temperature)(
-            province_name=name, year=year, polygon=polygon, raw_ts_data=raw_ts_data
+for location_type, polygons_per_location in [
+    ("country", country_polygons),
+    ("province", province_polygons),
+]:
+    timeseries_per_prov = []
+    for name, polygon in list(country_polygons.items()):
+        one_prov_multi_year_list = Parallel(n_jobs=3, backend="loky")(
+            delayed(get_province_temperature)(
+                province_name=name, year=year, polygon=polygon, raw_ts_data=raw_ts_data
+            )
+            for year in range(1997, 2020)
         )
-        for year in range(1980, 2020)
-    )
-    # Combine the timeseries of each year into a single pd.Series
-    single_prov_ts_serie = pd.concat(one_prov_multi_year_list, axis=0)
-    timeseries_per_prov.append(single_prov_ts_serie)
+        # Combine the timeseries of each year into a single pd.Series
+        single_prov_ts_serie = pd.concat(one_prov_multi_year_list, axis=0)
+        timeseries_per_prov.append(single_prov_ts_serie)
 
-timeseries_per_prov_df = pd.DataFrame(timeseries_per_prov).T
-timeseries_per_prov_df.index = pd.to_datetime(timeseries_per_prov_df.index)
-timeseries_per_prov_df.reset_index(inplace=True, drop=False)
-timeseries_per_prov_df.rename(columns={"index": "date"}, inplace=True)
-timeseries_per_prov_df.to_csv(
-    "/mnt/c/Users/loreg/Documents/dissertation_data/timeseries_per_country.csv",
-    index=False,
-)
+    timeseries_per_prov_df = pd.DataFrame(timeseries_per_prov).T
+    timeseries_per_prov_df.index = pd.to_datetime(timeseries_per_prov_df.index)
+    timeseries_per_prov_df.reset_index(inplace=True, drop=False)
+    timeseries_per_prov_df.rename(columns={"index": "date"}, inplace=True)
+    file_path = (
+        "/mnt/c/Users/loreg/Documents/dissertation_data/"
+        f"timeseries_per_{location_type}.csv"
+    )
+    timeseries_per_prov_df.to_csv(file_path, index=False)
 
 
 if POST_ANALYSIS:
+    timeserie_name = WeatherTimeSeriesEnum.MEAN_TEMPERATURE
+    location_type = "province"
+    timeseries_per_prov_df = pd.read_csv(
+        "/mnt/c/Users/loreg/Documents/dissertation_data/"
+        f"timeserie_{timeserie_name.value}_per_{location_type}.csv"
+    )
     timeseries_per_prov_df.T.plot()
     # count nan values and sort by number of nan values
     timeseries_per_prov_df.isna().sum(axis=0).sort_values(ascending=False)

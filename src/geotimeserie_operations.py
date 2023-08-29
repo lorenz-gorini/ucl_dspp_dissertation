@@ -95,25 +95,41 @@ class InterpolateOperation(GeoTimeSerieOperation):
 
         # create dummy dataset with the required resolution and rectangular bounds
         # containing area
-        lats = np.flip(np.arange(min_lat, max_lat, self.target_resol)).astype("float32")
+        lats = np.arange(min_lat, max_lat, self.target_resol).astype("float32")
         lons = np.arange(min_lon, max_lon, self.target_resol).astype("float32")
 
-        ds_out = xr.Dataset(
-            {
+        ds_interp_empty = xr.Dataset(
+            data_vars={
+                "tg": (
+                    ["time", "latitude", "longitude"],
+                    # Create array with nan
+                    np.full(
+                        (len(dataset.time.data), len(lats), len(lons)),
+                        fill_value=np.nan,
+                    ),
+                )
+            },
+            coords={
+                "time": (["time"], dataset.time.data),
                 "latitude": (["latitude"], lats),
                 "longitude": (["longitude"], lons),
-            }
+            },
         )
 
-        # interpolate and assign
-        ds_interp = dataset.interp_like(other=ds_out)
-        ds_interp = ds_interp.assign_coords(
-            {
-                "latitude": (["latitude"], lats),
-                "longitude": (["longitude"], lons),
-            }
+        # NOTE: The following command does not work when the dataset contains nan values
+        # ds_interp = dataset.interp_like(other=ds_interp_empty)
+
+        # Interpolate the data by merging it with the new grid
+        ds_interp_merge = xr.merge([dataset, ds_interp_empty])
+        ds_interp_merge["tg"] = ds_interp_merge.tg.rio.write_nodata(np.nan)
+        ds_interp = ds_interp_merge.rio.interpolate_na(
+            method="linear",  # kwargs={"fill_value": "extrapolate"},
         )
-        return ds_interp
+
+        ds_interp_nonan = ds_interp.dropna(dim="latitude", how="all").dropna(
+            dim="longitude", how="all"
+        )
+        return ds_interp_nonan
 
 
 class CastToTypeOperation(GeoTimeSerieOperation):

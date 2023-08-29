@@ -35,6 +35,152 @@ class TripDatasetOperation(ABC):
         pass
 
 
+class ToDatetimeConverter(TripDatasetOperation):
+    def __init__(
+        self,
+        date_column: str,
+        output_column: str,
+        date_format: str = "%Y-%m-%d",
+        force_repeat: bool = False,
+    ) -> None:
+        """
+        Convert a column to datetime pandas dtype
+        """
+        super().__init__(
+            input_columns=[date_column],
+            output_columns=[output_column],
+            force_repeat=force_repeat,
+        )
+        self.date_column = date_column
+        self.date_format = date_format
+
+    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
+        new_df = dataset.df.copy()
+        new_df[self.output_columns[0]] = pd.to_datetime(
+            new_df[self.date_column], format=self.date_format
+        )
+        return new_df
+
+    def __repr__(self) -> str:
+        return (
+            f"ConvertToDatetime({self.date_column}, {self.date_format}, "
+            f"{self.output_columns[0]})"
+        )
+
+
+class TripStartDateCreator(TripDatasetOperation):
+    def __init__(
+        self,
+        trip_end_date_column: str,
+        trip_duration_column: str,
+        output_column: str,
+        trip_end_date_format: str = "%Y-%m-%d",
+        duration_column_unit: str = "days",
+        force_repeat: bool = False,
+    ) -> None:
+        """
+        Compute the start date of the trip by subtracting trip duration to its end date
+        """
+        super().__init__(
+            input_columns=[trip_end_date_column, trip_duration_column],
+            output_columns=[output_column],
+            force_repeat=force_repeat,
+        )
+        self.trip_end_date_column = trip_end_date_column
+        self.trip_duration_column = trip_duration_column
+        self.end_date_format = trip_end_date_format
+        self.duration_column_unit = duration_column_unit
+
+    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
+        new_df = dataset.df.copy()
+        new_df[self.output_columns[0]] = pd.to_datetime(
+            new_df[self.trip_end_date_column], format=self.end_date_format
+        ) - pd.to_timedelta(
+            new_df[self.trip_duration_column], unit=self.duration_column_unit
+        )
+        return new_df
+
+    def __repr__(self) -> str:
+        return (
+            f"TripStartDateCreator({self.trip_end_date_column},"
+            f" {self.trip_duration_column}, {self.output_columns[0]},"
+            f" {self.end_date_format}, {self.duration_column_unit})"
+        )
+
+
+class ReplaceValuesByMap(TripDatasetOperation):
+    def __init__(
+        self,
+        input_column: List[str],
+        output_column: List[str],
+        map_dict: Dict[Any, Any],
+        force_repeat: bool = False,
+    ) -> None:
+        super().__init__(
+            input_columns=[input_column],
+            output_columns=[output_column],
+            force_repeat=force_repeat,
+        )
+        self.map_dict = map_dict
+
+    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
+        new_df = dataset.df.copy()
+        new_df[self.output_columns[0]] = new_df[self.input_columns[0]].replace(
+            self.map_dict
+        )
+        return new_df
+
+    def __repr__(self) -> str:
+        return f"ReplaceByMap({self.input_columns[0]}, {self.output_columns[0]}, {self.map_dict})"
+
+
+class FilterCountries(TripDatasetOperation):
+    def __init__(
+        self, country_column: str, countries: List[str], force_repeat: bool = False
+    ) -> None:
+        """
+        Filter the dataset by the given countries
+
+        Parameters
+        ----------
+        country_column : str
+            The name of the column in the dataset containing the countries
+        countries : List[str]
+            The list of countries to keep in the dataset
+        force_repeat : bool, optional
+            If True, the operation will be repeated even if the output columns are
+            already present in the dataset. Default is False.
+
+        Notes
+        -----
+        The countries must be in the same format as in the dataset, e.g. "FRANCIA"
+        instead of "France".
+        """
+        super().__init__(
+            input_columns=[country_column],
+            output_columns=[],
+            force_repeat=force_repeat,
+        )
+        self.countries = countries
+
+    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
+        new_df = dataset.df.copy()
+        new_df = new_df[new_df[self.input_columns[0]].isin(self.countries)]
+        new_df.reset_index(inplace=True, drop=True)
+        print(
+            f"The dataset now contains {new_df.shape[0]} rows out of"
+            f" {dataset.df.shape[0]}"
+        )
+        dropped_countries = set(dataset.df[self.input_columns[0]].unique()) - set(
+            self.countries
+        )
+        print(f"The dropped countries are {dropped_countries}")
+        return new_df
+
+    def __repr__(self) -> str:
+        return f"FilterCountries({self.input_columns[0]}, {self.countries})"
+
+
 class CodeToStringMapper(TripDatasetOperation):
     def __init__(
         self,

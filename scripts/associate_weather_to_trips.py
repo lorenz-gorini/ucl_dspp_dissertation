@@ -5,23 +5,23 @@ import pandas as pd
 from tqdm import tqdm
 
 from src.single_trip_operations import (
+    MaxAggregator,
     MeanAggregator,
     SelectConstantPeriodBeforeDate,
     StdAggregator,
-    MaxAggregator,
 )
 from src.trip_dataset import (
+    GenericTripDataset,
     TouristOrigin,
     TripDataset,
     VariableSubset,
-    GenericTripDataset,
 )
 from src.trip_operations import (
-    MultipleWeatherIndexCreator,
-    WeatherIndexOperationsToColumnMap,
-    ToDatetimeConverter,
     FilterCountries,
+    MultipleWeatherIndexCreator,
     ReplaceValuesByMap,
+    ToDatetimeConverter,
+    WeatherIndexOperationsToColumnMap,
 )
 
 timeseries_per_province_df = pd.read_csv(

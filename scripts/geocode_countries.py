@@ -3,6 +3,7 @@ Script to map the country IDs from "STATO_VISITATO" column into actual country n
 """
 from pathlib import Path
 
+import pandas as pd
 from tqdm import tqdm
 
 from src.single_trip_operations import TripVehicle
@@ -10,9 +11,10 @@ from src.trip_dataset import TouristOrigin, TripDataset, VariableSubset
 from src.trip_operations import (
     CodeToLocationMapperFromCSV,
     CodeToStringMapper,
-    TripStartDateCreator,
-    ToDatetimeConverter,
+    FilterCountries,
     ReplaceValuesByMap,
+    ToDatetimeConverter,
+    TripStartDateCreator,
 )
 
 # 1’ = Veicolo stradale ‘2’= Treno ‘3’= Aereo ‘4’ = Nave
@@ -75,6 +77,14 @@ replace_province_names_by_map = ReplaceValuesByMap(
         "SANTA SEDE CITTA' DEL VATICANO": "ROMA",
         "CITTA' DEL VATICANO": "ROMA",
     },
+    force_repeat=False,
+)
+timeseries_per_country_df = pd.read_csv(
+    "/mnt/c/Users/loreg/Documents/dissertation_data/timeserie_tg_per_country.csv"
+)
+select_italian_tourists_to_europe = FilterCountries(
+    country_column="STATO_VISITATO_mapped",
+    countries=timeseries_per_country_df.columns.to_list(),
     force_repeat=False,
 )
 

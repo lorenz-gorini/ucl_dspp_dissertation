@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 
 import googlemaps
+import pandas as pd
 from tqdm import tqdm
 
 from src.single_trip_operations import TripVehicle
@@ -21,10 +22,11 @@ from src.trip_operations import (
     CodeToLocationMapperFromCSV,
     CodeToStringMapper,
     CoordinateToElevationMapper,
+    FilterCountries,
     LocationToCoordinatesMapper,
-    TripStartDateCreator,
-    ToDatetimeConverter,
     ReplaceValuesByMap,
+    ToDatetimeConverter,
+    TripStartDateCreator,
 )
 
 prov_code_mapper = CodeToLocationMapperFromCSV(
@@ -37,6 +39,14 @@ prov_code_mapper = CodeToLocationMapperFromCSV(
     location_name_column="D_EL_DOMINIO",
     separator=";",
     nan_codes=[0, 99999],
+    force_repeat=False,
+)
+timeseries_per_country_df = pd.read_csv(
+    "/mnt/c/Users/loreg/Documents/dissertation_data/timeserie_tg_per_country.csv"
+)
+select_european_tourists_to_italy = FilterCountries(
+    country_column="STATO_RESIDENZA_mapped",
+    countries=timeseries_per_country_df.columns.to_list(),
     force_repeat=False,
 )
 replace_names_by_map = ReplaceValuesByMap(

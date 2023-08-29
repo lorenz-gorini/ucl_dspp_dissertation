@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import googlemaps
 import numpy as np
@@ -8,7 +9,6 @@ import pandas as pd
 import requests
 from geopy.geocoders.base import Geocoder
 from tqdm import tqdm
-from dataclasses import dataclass
 
 from .single_trip import SingleTrip, TripVehicle
 from .single_trip_operations import AggregateTimeSerie, SelectPeriodBeforeTripDate

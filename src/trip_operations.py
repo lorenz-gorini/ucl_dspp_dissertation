@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 
 import googlemaps
 import numpy as np
@@ -8,6 +8,7 @@ import pandas as pd
 import requests
 from geopy.geocoders.base import Geocoder
 from tqdm import tqdm
+from dataclasses import dataclass
 
 from .single_trip import SingleTrip, TripVehicle
 from .single_trip_operations import AggregateTimeSerie, SelectPeriodBeforeTripDate
@@ -479,10 +480,10 @@ class CoordinateToElevationMapper(TripDatasetOperation):
 class WeatherIndexCreator(TripDatasetOperation):
     def __init__(
         self,
-        weather_df: pd.DataFrame,
-        trip_destination_column: str,
+        trip_location_column: str,
         trip_date_column: str,
-        output_column: str = "weather_index",
+        output_columns: List[str],
+        vehicle_column: Optional[str] = None,
         force_repeat: bool = False,
     ):
         """
@@ -490,21 +491,27 @@ class WeatherIndexCreator(TripDatasetOperation):
 
         Parameters
         ----------
-        weather_df : pd.DataFrame
-            The dataframe containing the weather timeseries. Note that this must have
-            a column named "DATE" containing the dates of the timeseries, and the other
-            columns must be location names (e.g. "Milan") containing the weather
-            timeseries. The location names must be the same as the ones in the
-            ``destination_column`` of the dataset.
+        trip_location_column : str
+            The name of the column in the dataset containing the trip location
+        trip_date_column : str
+            The name of the column in the dataset containing the trip date. NOTE: the
+            dtype of this column must be datetime
+        output_columns : List[str]
+            The name of the column in the dataset that will be created with the
+            computed weather index
         """
         super().__init__(
-            input_columns=[trip_destination_column, trip_date_column],
-            output_columns=[output_column],
+            input_columns=(
+                [trip_location_column, trip_date_column]
+                if vehicle_column is None
+                else [trip_location_column, trip_date_column, vehicle_column]
+            ),
+            output_columns=output_columns,
             force_repeat=force_repeat,
         )
-        self.weather_df = weather_df
-        self.trip_location_column = trip_destination_column
+        self.trip_location_column = trip_location_column
         self.trip_date_column = trip_date_column
+        self.vehicle_column = vehicle_column
 
 
 
@@ -589,6 +596,7 @@ class WeatherIndexPerTripCreator(WeatherIndexCreator):
             f" {self.aggregate_timeserie_operation}, {self.trip_location_column},"
             f" {self.trip_date_column}, {self.output_columns}, {self.vehicle_column})"
         )
+
 
 @dataclass
 class WeatherIndexOperationsToColumnMap:

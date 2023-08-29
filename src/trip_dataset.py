@@ -35,6 +35,159 @@ from_vars_to_2013_url_map = {
 }
 
 
+class GenericTripDataset:
+    def __init__(
+        self,
+        raw_file_path: Path,
+        processed_file_path: Path,
+        column_to_dtype_map: Optional[Dict[str, Any]] = None,
+        df: pd.DataFrame = None,
+        force_raw: bool = False,
+    ) -> None:
+        """
+        Dataset class
+
+        This class handles the dataset defined by the argument used to initiate it
+        in a completely opaque way to the user.
+        Everytime a new operation is performed, the resulting dataset is saved
+        in ``processed_folder``, because it is assumed that every operation is
+        improving the dataset.
+        Every operation name and parameter is saved in a new column called "operations"
+        and the list can also be accessed with the ``operations`` class property.
+
+        Parameters
+        ----------
+        raw_file_path : Path
+            The path to the raw file.
+        processed_file_path : Path
+            The path to the processed file.
+        column_to_dtype_map : Dict[str, Any], optional
+            A dictionary that maps column names to their data type. This is useful
+            because some columns are not correctly parsed by pandas, so we can force
+            the correct data type. When set to None, it will
+            be automatically set to ``{"CHIAVE": str}``, because in the trip datasets
+            the ``CHIAVE`` column is a very long int, much longer than the maximum
+            size of Int64. In case where
+            (year==2018 and tourist_origin==TouristOrigin.FOREIGNERS)
+            the "CHIAVE" key will be automatically replaced with "chiave" due to
+            inconsistency of the raw data. Default is None.
+        force_raw : bool
+            If True, the dataset will be loaded in "raw" version from ``raw_folder``,
+            even if it is present in the ``processed_folder``. The default is False.
+        """
+        # TODO: Make this class the base class for TripDataset
+        self.raw_file_path = raw_file_path
+        self.processed_file_path = processed_file_path
+        self.force_raw = force_raw
+
+        if column_to_dtype_map is None:
+            column_to_dtype_map = {"CHIAVE": str}
+
+        self.column_to_dtype_map = column_to_dtype_map
+        self._df = df
+
+    @property
+    def df(self) -> pd.DataFrame:
+        if self._df is None:
+            if not self.force_raw and self.processed_file_path.exists():
+                self._df = pd.read_csv(
+                    self.processed_file_path, dtype=self.column_to_dtype_map
+                )
+            else:
+                self._df = pd.read_csv(
+                    self.raw_file_path, dtype=self.column_to_dtype_map
+                )
+        return self._df
+
+    @property
+    def operations(self) -> List[str]:
+        return self.df[~self.df["operations"].isna()]["operations"].to_list()
+
+    def _restore_operations(
+        self, operations: List[Union[str, "TripDatasetOperation"]]
+    ) -> None:
+        for index, operation in enumerate(operations):
+            self._df.loc[index, "operations"] = str(operation)
+
+    def _add_operation(self, operation: "TripDatasetOperation") -> None:
+        self._df.loc[len(self.operations), "operations"] = str(operation)
+
+    def _remove_operation(self, operation: "TripDatasetOperation") -> None:
+        self._df["operations"] = self._df["operations"].apply(
+            lambda x: None if x == str(operation) else x
+        )
+
+    def save_df(self) -> None:
+        """
+        Set the dataset to a new dataframe and save it to disk
+
+        WARNING: Be careful when using this method, because it will overwrite the
+        previous file without keeping track of the operations performed on the dataset.
+        It is highly recommended to use the ``apply`` method with a
+        ``DatasetOperation`` instead.
+        """
+        self._df.to_csv(self.processed_file_path, index=False)
+
+    def is_operation_applied(self, operation: "TripDatasetOperation") -> bool:
+        is_applied = str(operation) in self.operations
+        if is_applied:
+            # Check that all the output columns are in the dataframe
+            for col in operation.output_columns:
+                if col not in self.df.columns:
+                    raise ValueError(
+                        f"Operation {str(operation)} was already performed on dataset,"
+                        f" but the output column {col} is not in the dataframe."
+                    )
+        return is_applied
+
+    def apply(self, operation: "TripDatasetOperation") -> "TripDataset":
+        """
+        Apply an operation to the dataset
+
+        When the ``operation`` is applied, the dataset keeps track of it by saving its
+        string representation in the ``operations`` column of the dataset (that can
+        be accessed with ``operations`` property), so that it can also be skipped if
+        it is already applied.
+
+        NOTE
+        ----
+        After applying each operation, the dataset is saved to disk in the
+        ``processed_folder``, so that the operations are not repeated if the script
+        is interrupted and we load the same dataset again.
+
+        Parameters
+        ----------
+        operation : TripDatasetOperation
+            The operation to apply to the dataset.
+
+        Returns
+        -------
+        TripDataset
+            The dataset with the operation applied.
+        """
+        if operation.force_repeat is False and self.is_operation_applied(operation):
+            print(f"Operation {str(operation)} already performed on dataset. Skipping")
+        else:
+            if operation.force_repeat is True:
+                self._remove_operation(operation)
+            # Need to cache the operations, because applying the ``operation``
+            # may drop some rows containing previous operations already applied
+            operation_cache = self.operations
+            print(f"Applying operation {str(operation)} to dataset")
+            self._df = operation(self)
+            # Restore the operation list by writing them on the new dataset
+            self._restore_operations(operation_cache)
+            self._add_operation(operation)
+            self.save_df()
+        return self
+
+    def __repr__(self) -> str:
+        attributes = self.__dict__.copy()
+        attributes.pop("_df")
+        attr_str = ", ".join([f"{k}={v}" for k, v in attributes.items()])
+        return f"TripDataset({attr_str})"
+
+
 class TripDataset:
     def __init__(
         self,

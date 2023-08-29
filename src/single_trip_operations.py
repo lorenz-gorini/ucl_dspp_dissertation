@@ -33,7 +33,7 @@ class SelectPeriodBeforeTripDate(SingleTripOperation):
         location_column: str,
     ):
         """
-        Select the timeserie data for the time period before specific date
+        Select a specific time period from the timeserie data before specific date
 
         This operation will clip the timeseries differently for each row of
         ``datetime_df`` that is passed to __call__ method. Particularly, the clipped
@@ -107,9 +107,9 @@ class SelectConstantPeriodBeforeDate(SelectPeriodBeforeTripDate):
         This operation will clip the timeseries differently for each row of
         ``timeserie_df`` that is passed to __call__ method. Particularly, the clipped
         timeserie will go from:
-        `ref_date - period_length`
+        `ref_date - period_length/2`
         until
-        `ref_date + period_length`.
+        `ref_date + period_length/2`.
 
         The ``ref_date`` is computed as:
         `ref_date = trip.start_date - time_before_date`
@@ -155,21 +155,25 @@ class SelectConstantPeriodBeforeDate(SelectPeriodBeforeTripDate):
         SingleTrip
             Trip containing the filtered timeserie data
         """
-        # Get the timeserie data for the given time range
-        period_timeserie = self.timeserie_df[
-            (
-                self.timeserie_df[self.date_column]
-                >= trip.start_date
-                - self.time_before_date
-                - self.period_length / 2
-                + datetime.timedelta(days=1)
-                # +1 because the trip start date is included in the period
-            )
-            & (
-                self.timeserie_df[self.date_column]
-                <= trip.start_date - self.time_before_date + self.period_length / 2
-            )
-        ][trip.destination]
+        try:
+            # Get the timeserie data for the given time range
+            period_timeserie = self.timeserie_df[
+                (
+                    self.timeserie_df[self.date_column]
+                    >= trip.start_date
+                    - self.time_before_date
+                    - self.period_length / 2
+                    + datetime.timedelta(days=1)
+                    # +1 because the trip start date is included in the period
+                )
+                & (
+                    self.timeserie_df[self.date_column]
+                    <= trip.start_date - self.time_before_date + self.period_length / 2
+                )
+            ][trip.destination]
+        except KeyError as e:
+            print(f"KeyError: {e}")
+            period_timeserie = pd.Series([np.nan] * self.period_length.days)
 
         return SingleTrip(
             index=trip.index,
@@ -257,20 +261,27 @@ class SelectVariablePeriodBeforeDateByVehicle(SelectPeriodBeforeTripDate):
                 [np.nan] * self.period_length_by_vehicle[TripVehicle.CAR]
             )
         else:
-            # Get the timeserie data for the given time range
-            period_timeserie = self.timeserie_df[
-                (
-                    self.timeserie_df[self.date_column]
-                    >= trip.start_date
-                    - self.period_length_by_vehicle[trip.trip_vehicle]
-                    - self.time_before_date_by_vehicle[trip.trip_vehicle]
+            try:
+                # Get the timeserie data for the given time range
+                period_timeserie = self.timeserie_df[
+                    (
+                        self.timeserie_df[self.date_column]
+                        >= trip.start_date
+                        - self.period_length_by_vehicle[trip.trip_vehicle]
+                        - self.time_before_date_by_vehicle[trip.trip_vehicle]
+                    )
+                    & (
+                        self.timeserie_df[self.date_column]
+                        <= trip.start_date
+                        - self.time_before_date_by_vehicle[trip.trip_vehicle]
+                    )
+                ][trip.destination]
+
+            except KeyError as e:
+                print(f"KeyError: {e}")
+                period_timeserie = pd.Series(
+                    [np.nan] * self.period_length_by_vehicle[TripVehicle.CAR]
                 )
-                & (
-                    self.timeserie_df[self.date_column]
-                    <= trip.start_date
-                    - self.time_before_date_by_vehicle[trip.trip_vehicle]
-                )
-            ][trip.destination]
 
         return SingleTrip(
             index=trip.index,

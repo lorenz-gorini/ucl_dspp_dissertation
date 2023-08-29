@@ -4,50 +4,195 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 
-from src.single_trip_operations import MeanAggregator, SelectConstantPeriodBeforeDate
-from src.trip_dataset import TouristOrigin, TripDataset, VariableSubset
-from src.trip_operations import WeatherIndexPerTripCreator
+from src.single_trip_operations import (
+    MeanAggregator,
+    SelectConstantPeriodBeforeDate,
+    StdAggregator,
+    MaxAggregator,
+)
+from src.trip_dataset import (
+    TouristOrigin,
+    TripDataset,
+    VariableSubset,
+    GenericTripDataset,
+)
+from src.trip_operations import (
+    MultipleWeatherIndexCreator,
+    WeatherIndexOperationsToColumnMap,
+    ToDatetimeConverter,
+    FilterCountries,
+    ReplaceValuesByMap,
+)
 
 timeseries_per_province_df = pd.read_csv(
-    "/mnt/c/Users/loreg/Documents/dissertation_data/timeseries_per_province_mapped.csv"
+    "/mnt/c/Users/loreg/Documents/dissertation_data/timeserie_tg_per_province.csv"
+)
+timeseries_per_country_df = pd.read_csv(
+    "/mnt/c/Users/loreg/Documents/dissertation_data/timeserie_tg_per_country.csv"
 )
 
 POST_ANALYSIS = False
+USE_SAMPLED = True
 
-weather_index_creator = WeatherIndexPerTripCreator(
-    weather_df=timeseries_per_province_df,
-    output_column="weather_index",
-    trip_destination_column="PROVINCIA_VISITATA_mapped",
-    trip_date_column="DATA_INTERVISTA",  # DATA_INIZ_VIAGGIO_computed
-    vehicle_column="FLAG_LOCALITA",
-    select_weather_period_operation=SelectConstantPeriodBeforeDate(
-        timeserie_df=timeseries_per_province_df,
-        date_column="DATE",
-        location_column="PROVINCIA_VISITATA_mapped",
-        # 2 months in order to have a more stable weather index that can describe
-        # the expected weather in those months during the trip
-        period_length=datetime.timedelta(days=60),
-        # Previous Year, during the same period, 1 month before (half of the period length)
-        time_before_date=datetime.timedelta(days=365),
-    ),
-    aggregate_timeserie_operation=MeanAggregator(),
+datetime_converter = ToDatetimeConverter(
+    date_column="DATA_INTERVISTA",
+    date_format="%Y%m%d",
+    output_column="DATA_INTERVISTA",
     force_repeat=False,
 )
 
-# read tourism data
-for year in tqdm(range(1997, 2023, 1)):
-    dataset = TripDataset(
-        variable_subset=VariableSubset.PRIMARY,
-        tourist_origin=TouristOrigin.FOREIGNERS,
-        year=year,
-        raw_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
-        processed_folder=Path(
-            "/mnt/c/Users/loreg/Documents/dissertation_data/processed"
+# ============== European tourists to Italy ==============
+
+select_european_tourists_to_italy = FilterCountries(
+    country_column="STATO_RESIDENZA_mapped",
+    countries=timeseries_per_country_df.columns,
+    force_repeat=False,
+)
+
+visited_province_index_creator = MultipleWeatherIndexCreator(
+    trip_location_column="PROVINCIA_VISITATA_mapped",
+    trip_date_column="DATA_INIZ_VIAGGIO_computed",  # DATA_INIZ_VIAGGIO_computed
+    operations_to_column_map=WeatherIndexOperationsToColumnMap(
+        select_period=SelectConstantPeriodBeforeDate(
+            timeserie_df=timeseries_per_province_df,
+            date_column="DATE",
+            location_column="PROVINCIA_VISITATA_mapped",
+            # 2 months in order to have a more stable weather index that can describe
+            # the expected weather in those months during the trip
+            period_length=datetime.timedelta(days=60),
+            # Previous Year, during the same period, 1 month before (half of the period length)
+            time_before_date=datetime.timedelta(days=365),
         ),
-        # ``CHIAVE`` column is a very long int, much longer than the maximum size of Int64
-        column_to_dtype_map={"CHIAVE": str},
-    )
-    dataset.apply(weather_index_creator)
+        output_column_to_aggregator={
+            "PROVINCIA_VISITATA_tg_1y_before_2m_period_mean": MeanAggregator(),
+            "PROVINCIA_VISITATA_tg_1y_before_2m_period_std": StdAggregator(),
+            "PROVINCIA_VISITATA_tg_1y_before_2m_period_max": MaxAggregator(),
+        },
+    ),
+    force_repeat=False,
+)
+residence_country_index_creator = MultipleWeatherIndexCreator(
+    trip_location_column="STATO_RESIDENZA_mapped",
+    trip_date_column="DATA_INIZ_VIAGGIO_computed",  # DATA_INIZ_VIAGGIO_computed
+    operations_to_column_map=WeatherIndexOperationsToColumnMap(
+        select_period=SelectConstantPeriodBeforeDate(
+            timeserie_df=timeseries_per_country_df,
+            date_column="DATE",
+            location_column="STATO_RESIDENZA_mapped",
+            # 3 months before leaving, 3 months period
+            period_length=datetime.timedelta(days=90),
+            time_before_date=datetime.timedelta(days=45),
+        ),
+        output_column_to_aggregator={
+            "STATO_RESIDENZA_tg_45d_before_3m_period_mean": MeanAggregator(),
+            "STATO_RESIDENZA_tg_45d_before_3m_period_std": StdAggregator(),
+            "STATO_RESIDENZA_tg_45d_before_3m_period_max": MaxAggregator(),
+        },
+    ),
+    force_repeat=False,
+)
+
+# ============== Italian tourists to Europe ==============
+select_italian_tourists_to_europe = FilterCountries(
+    country_column="STATO_VISITATO_mapped",
+    countries=timeseries_per_country_df.columns.to_list(),
+    force_repeat=False,
+)
+
+visited_country_index_creator = MultipleWeatherIndexCreator(
+    trip_location_column="STATO_VISITATO_mapped",
+    trip_date_column="DATA_INIZ_VIAGGIO_computed",  # DATA_INIZ_VIAGGIO_computed
+    force_repeat=True,
+    operations_to_column_map=WeatherIndexOperationsToColumnMap(
+        select_period=SelectConstantPeriodBeforeDate(
+            timeserie_df=timeseries_per_country_df,
+            date_column="DATE",
+            location_column="STATO_VISITATO_mapped",
+            # 2 months in order to have a more stable weather index that can describe
+            # the expected weather in those months during the trip
+            period_length=datetime.timedelta(days=60),
+            # Previous Year, during the same period, 1 month before (half of the period length)
+            time_before_date=datetime.timedelta(days=365),
+        ),
+        output_column_to_aggregator={
+            "STATO_VISITATO_tg_1y_before_2m_period_mean": MeanAggregator(),
+            "STATO_VISITATO_tg_1y_before_2m_period_std": StdAggregator(),
+            "STATO_VISITATO_tg_1y_before_2m_period_max": MaxAggregator(),
+        },
+    ),
+)
+residence_province_index_creator = MultipleWeatherIndexCreator(
+    trip_location_column="PROV_RESIDENZA_mapped",
+    trip_date_column="DATA_INIZ_VIAGGIO_computed",  # DATA_INIZ_VIAGGIO_computed
+    force_repeat=True,
+    operations_to_column_map=WeatherIndexOperationsToColumnMap(
+        select_period=SelectConstantPeriodBeforeDate(
+            timeserie_df=timeseries_per_province_df,
+            date_column="DATE",
+            location_column="PROV_RESIDENZA_mapped",
+            # 3 months before leaving, 3 months period
+            period_length=datetime.timedelta(days=90),
+            time_before_date=datetime.timedelta(days=45),
+        ),
+        output_column_to_aggregator={
+            "PROV_RESIDENZA_tg_45d_before_3m_period_mean": MeanAggregator(),
+            "PROV_RESIDENZA_tg_45d_before_3m_period_std": StdAggregator(),
+            "PROV_RESIDENZA_tg_45d_before_3m_period_max": MaxAggregator(),
+        },
+    ),
+)
+
+# read tourism data
+for tourist_origin in [
+    TouristOrigin.ITALIANS,
+    # TouristOrigin.FOREIGNERS,
+]:
+    if USE_SAMPLED:
+        dataset = GenericTripDataset(
+            raw_file_path=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw")
+            / f"sample_5K_{tourist_origin.value}.csv",
+            processed_file_path=Path(
+                "/mnt/c/Users/loreg/Documents/dissertation_data/processed"
+                f"/sample_5K_{tourist_origin.value}.csv",
+            ),
+            # ``CHIAVE`` column is a very long int, much longer than the maximum size of Int64
+            column_to_dtype_map={"CHIAVE": str},
+            force_raw=False,
+        )
+        dataset.apply(datetime_converter)
+        if tourist_origin == TouristOrigin.ITALIANS:
+            dataset.apply(select_italian_tourists_to_europe)
+            dataset.apply(visited_country_index_creator)
+            dataset.apply(replace_prov_names_by_map)
+            dataset.apply(residence_province_index_creator)
+        else:
+            dataset.apply(select_european_tourists_to_italy)
+            dataset.apply(visited_province_index_creator)
+            dataset.apply(residence_country_index_creator)
+
+    else:
+        for year in tqdm(range(1997, 2023, 1)):
+            dataset = TripDataset(
+                variable_subset=VariableSubset.PRIMARY,
+                tourist_origin=tourist_origin,
+                year=year,
+                raw_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
+                processed_folder=Path(
+                    "/mnt/c/Users/loreg/Documents/dissertation_data/processed"
+                ),
+                force_raw=False,
+                column_to_dtype_map={"CHIAVE": str},
+            )
+            dataset.apply(datetime_converter)
+            if tourist_origin == TouristOrigin.ITALIANS:
+                dataset.apply(select_italian_tourists_to_europe)
+                dataset.apply(visited_country_index_creator)
+                dataset.apply(residence_province_index_creator)
+            else:
+                dataset.apply(select_european_tourists_to_italy)
+                dataset.apply(visited_province_index_creator)
+                dataset.apply(residence_country_index_creator)
+
 
 if POST_ANALYSIS:
     # Scatter Plot with dataset.df["weather_index"] and dataset.df["DATA_INTERVISTA"].dt.month

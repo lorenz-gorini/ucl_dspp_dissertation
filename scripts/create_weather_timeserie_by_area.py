@@ -1,3 +1,10 @@
+"""
+Script to create a timeserie of weather data for each country (or province) in
+Europe (or Italy).
+I need to analye each year separately because the data is too big, so I first
+need to slice the timeseries for each year and then combine them
+"""
+
 from pathlib import Path
 
 import geopandas as gpd
@@ -65,18 +72,27 @@ def get_province_temperature(
 ) -> xr.Dataset:
     print(f"Extracting time serie for {(province_name, year)}")
     try:
+        minx, miny, maxx, maxy = polygon.bounds
+        exterior_polygon = shapely.Polygon(
+            [(minx, miny), (minx, maxy), (maxx, maxy), (maxx, miny), (minx, miny)]
+        )
+
         one_prov_one_year_ts = raw_ts_data.apply(
             [
                 SetCRSOperation(crs="EPSG:4326"),
                 TimeRangeClipOperation(
                     start_time=f"{year}-01-01", end_time=f"{year}-12-31"
                 ),
-                AreaClipOperation(area=polygon),
+                # we don't clip to the polygon here because we need to interpolate
+                # first, but this highly reduces dataset size and speeds up the
+                # interpolation
+                AreaClipOperation(area=exterior_polygon),
                 CastToTypeOperation(
                     variable_name=WeatherTimeSeriesEnum.MEAN_TEMPERATURE.value,
                     dtype="float32",
                 ),
                 InterpolateOperation(target_resolution=0.03),
+                AreaClipOperation(area=polygon),
                 MeanAggregator(columns=["latitude", "longitude"]),
             ]
         )
@@ -93,7 +109,9 @@ for location_type, polygons_per_location in [
     ("province", province_polygons),
 ]:
     timeseries_per_prov = []
-    for name, polygon in list(country_polygons.items()):
+    for name, polygon in list(polygons_per_location.items()):
+        # I need to analye each year separately because the data is too big, so I first
+        # need to slice the timeseries for each year and then combine them
         one_prov_multi_year_list = Parallel(n_jobs=3, backend="loky")(
             delayed(get_province_temperature)(
                 province_name=name, year=year, polygon=polygon, raw_ts_data=raw_ts_data

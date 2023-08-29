@@ -44,7 +44,7 @@ prov_code_mapper = CodeToLocationMapperFromCSV(
 timeseries_per_country_df = pd.read_csv(
     "/mnt/c/Users/loreg/Documents/dissertation_data/timeserie_tg_per_country.csv"
 )
-select_european_tourists_to_italy = FilterCountries(
+filter_european_tourists_to_italy = FilterCountries(
     country_column="STATO_RESIDENZA_mapped",
     countries=timeseries_per_country_df.columns.to_list(),
     force_repeat=False,
@@ -123,7 +123,7 @@ for year in tqdm(range(1997, 2020, 1)):
         processed_folder=Path(
             "/mnt/c/Users/loreg/Documents/dissertation_data/processed"
         ),
-        force_raw=True,
+        force_raw=False,
         column_to_dtype_map={"CHIAVE": str},
     )
     initial_nrows = dataset.df.shape[0]
@@ -140,4 +140,7 @@ for year in tqdm(range(1997, 2020, 1)):
     assert (
         initial_nrows == dataset.df.shape[0]
     ), f"{initial_nrows - dataset.df.shape[0]} rows were dropped, check the code"
+
+    dataset.apply(filter_european_tourists_to_italy)
+
     print("OK")

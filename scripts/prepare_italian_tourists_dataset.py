@@ -82,7 +82,7 @@ replace_province_names_by_map = ReplaceValuesByMap(
 timeseries_per_country_df = pd.read_csv(
     "/mnt/c/Users/loreg/Documents/dissertation_data/timeserie_tg_per_country.csv"
 )
-select_italian_tourists_to_europe = FilterCountries(
+filter_italian_tourists_to_europe = FilterCountries(
     country_column="STATO_VISITATO_mapped",
     countries=timeseries_per_country_df.columns.to_list(),
     force_repeat=False,
@@ -100,10 +100,19 @@ for year in tqdm(range(1997, 2023, 1)):
         processed_folder=Path(
             "/mnt/c/Users/loreg/Documents/dissertation_data/processed"
         ),
+        force_raw=False,
     )
+    initial_nrows = dataset.df.shape[0]
+    print("year ", year)
+
     dataset.apply(visited_country_code_mapper)
     dataset.apply(residence_province_code_mapper)
     dataset.apply(replace_province_names_by_map)
     dataset.apply(vehicle_type_mapper)
     dataset.apply(datetime_converter)
     dataset.apply(trip_start_date_creator)
+    assert (
+        initial_nrows == dataset.df.shape[0]
+    ), f"{initial_nrows - dataset.df.shape[0]} rows were dropped, check the code"
+
+    dataset.apply(filter_italian_tourists_to_europe)

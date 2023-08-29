@@ -15,21 +15,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from src.trip_dataset import TouristOrigin, TripDataset, VariableSubset
-from src.trip_operations import FilterCountries
 
-timeseries_per_country_df = pd.read_csv(
-    "/mnt/c/Users/loreg/Documents/dissertation_data/timeserie_tg_per_country.csv"
-)
-select_italian_tourists_to_europe = FilterCountries(
-    country_column="STATO_VISITATO_mapped",
-    countries=timeseries_per_country_df.columns.to_list(),
-    force_repeat=False,
-)
-select_european_tourists_to_italy = FilterCountries(
-    country_column="STATO_RESIDENZA_mapped",
-    countries=timeseries_per_country_df.columns.to_list(),
-    force_repeat=False,
-)
 
 for tourist_origin in [
     TouristOrigin.ITALIANS,
@@ -50,11 +36,6 @@ for tourist_origin in [
             column_to_dtype_map={"CHIAVE": str},
         )
         print("year ", year)
-
-        if tourist_origin == TouristOrigin.ITALIANS:
-            dataset.apply(select_italian_tourists_to_europe)
-        else:
-            dataset.apply(select_european_tourists_to_italy)
 
         sampled_dfs.append(dataset.df.sample(n=5000, random_state=42))
         print("OK")

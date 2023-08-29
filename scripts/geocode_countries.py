@@ -11,9 +11,35 @@ from src.trip_operations import (
     CodeToLocationMapperFromCSV,
     CodeToStringMapper,
     TripStartDateCreator,
+    ToDatetimeConverter,
+    ReplaceValuesByMap,
 )
 
-code_mapper = CodeToLocationMapperFromCSV(
+# 1’ = Veicolo stradale ‘2’= Treno ‘3’= Aereo ‘4’ = Nave
+vehicle_type_mapper = CodeToStringMapper(
+    input_column="FLAG_LOCALITA",
+    output_column="FLAG_LOCALITA_mapped",
+    code_map={i.name: i.value for i in TripVehicle},
+    force_repeat=False,
+)
+
+datetime_converter = ToDatetimeConverter(
+    date_column="DATA_INTERVISTA",
+    date_format="%Y%m%d",
+    output_column="DATA_INTERVISTA",
+    force_repeat=False,
+)
+
+trip_start_date_creator = TripStartDateCreator(
+    trip_end_date_column="DATA_INTERVISTA",
+    trip_duration_column="NR_NOTTI",
+    output_column="DATA_INIZ_VIAGGIO_computed",
+    trip_end_date_format="%d-%m-%Y",
+    duration_column_unit="days",
+    force_repeat=False,
+)
+
+visited_country_code_mapper = CodeToLocationMapperFromCSV(
     input_column="STATO_VISITATO",
     output_column="STATO_VISITATO_mapped",
     code_map_csv=Path(
@@ -23,7 +49,35 @@ code_mapper = CodeToLocationMapperFromCSV(
     location_name_column="D_EL_DOMINIO",
     separator=";",
     nan_codes=[0, 99999],
+    force_repeat=False,
 )
+
+residence_province_code_mapper = CodeToLocationMapperFromCSV(
+    input_column="PROV_RESIDENZA",
+    output_column="PROV_RESIDENZA_mapped",
+    code_map_csv=Path(
+        "/mnt/c/Users/loreg/Documents/dissertation_data/Metadati-CSV/TPROVINCE.csv"
+    ),
+    code_column_csv="ELEM_DOMINIO",
+    location_name_column="D_EL_DOMINIO",
+    separator=";",
+    nan_codes=[0, 99999],
+    force_repeat=False,
+)
+replace_province_names_by_map = ReplaceValuesByMap(
+    input_column="PROV_RESIDENZA_mapped",
+    output_column="PROV_RESIDENZA_mapped",
+    map_dict={
+        "CARBONIA-IGLESIAS": "SUD SARDEGNA",
+        "OGLIASTRA": "NUORO",
+        "OLBIA-TEMPIO": "SASSARI",
+        "MEDIO CAMPIDANO": "SUD SARDEGNA",
+        "SANTA SEDE CITTA' DEL VATICANO": "ROMA",
+        "CITTA' DEL VATICANO": "ROMA",
+    },
+    force_repeat=False,
+)
+
 
 # 2. Load the data by year and compute the aggregated values by year and
 # by country of origin
@@ -37,4 +91,9 @@ for year in tqdm(range(1997, 2023, 1)):
             "/mnt/c/Users/loreg/Documents/dissertation_data/processed"
         ),
     )
-    dataset.apply(code_mapper)
+    dataset.apply(visited_country_code_mapper)
+    dataset.apply(residence_province_code_mapper)
+    dataset.apply(replace_province_names_by_map)
+    dataset.apply(vehicle_type_mapper)
+    dataset.apply(datetime_converter)
+    dataset.apply(trip_start_date_creator)

@@ -9,7 +9,7 @@ import pandas as pd
 import rioxarray
 import xarray as xr
 
-from .geotimeserie_operations import TimeSerieOperation
+from .geotimeserie_operations import GeoTimeSerieOperation
 
 
 class WeatherTimeSeriesEnum(enum.Enum):
@@ -107,14 +107,14 @@ class GeoTimeSerieDataset(ABC):
 
     def apply(
         self,
-        operations: List[TimeSerieOperation],
+        operations: List[GeoTimeSerieOperation],
     ) -> "GeoTimeSerieDataset":
         """
         Apply the given operations to the timeserie data
 
         Parameters
         ----------
-        operations : List[TimeSerieOperation]
+        operations : List[GeoTimeSerieOperation]
             List of operations to apply to the timeserie data
 
         Returns

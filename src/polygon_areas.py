@@ -79,12 +79,12 @@ class PolygonAreasFromFile:
             if shapefile_path is None:
                 raise ValueError("Either `shapefile_path` or `geo_df` must be not None")
             else:
-                self.geo_df = self.read_geo_df(shapefile_path)
+                self.geo_df = self.read_geo_df(shapefile_path, crs=crs)
         else:
             self.geo_df = geo_df
 
     @staticmethod
-    def read_geo_df(file_path:Path, crs:str) -> gpd.GeoDataFrame:
+    def read_geo_df(file_path: Path, crs: str) -> gpd.GeoDataFrame:
         """
         Loads the shapefile for the given country
 

@@ -80,13 +80,15 @@ def get_location_temperature(
         exterior_polygon = shapely.Polygon(
             [(minx, miny), (minx, maxy), (maxx, maxy), (maxx, miny), (minx, miny)]
         )
+        operations = [
+            SetCRSOperation(crs="EPSG:4326"),
+            TimeRangeClipOperation(
+                start_time=f"{year}-01-01", end_time=f"{year}-12-31"
+            ),
+        ]
 
-        one_prov_one_year_ts = raw_ts_data.apply(
-            [
-                SetCRSOperation(crs="EPSG:4326"),
-                TimeRangeClipOperation(
-                    start_time=f"{year}-01-01", end_time=f"{year}-12-31"
-                ),
+        if location_type == "province":
+            operations += [
                 # we don't clip to the polygon here because we need to interpolate
                 # first, but this highly reduces dataset size and speeds up the
                 # interpolation
@@ -97,9 +99,19 @@ def get_location_temperature(
                 ),
                 InterpolateOperation(target_resolution=0.03),
                 AreaClipOperation(area=polygon),
-                MeanAggregator(columns=["latitude", "longitude"]),
             ]
-        )
+        else:
+            operations += [
+                AreaClipOperation(area=polygon),
+                CastToTypeOperation(
+                    variable_name=WeatherTimeSeriesEnum.MEAN_TEMPERATURE.value,
+                    dtype="float32",
+                ),
+            ]
+        operations += [MeanAggregator(columns=["latitude", "longitude"])]
+
+        one_prov_one_year_ts = raw_ts_data.apply(operations)
+
         return one_prov_one_year_ts.to_dataframe()[
             WeatherTimeSeriesEnum.MEAN_TEMPERATURE.value
         ].rename(location_name)

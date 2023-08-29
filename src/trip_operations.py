@@ -589,3 +589,140 @@ class WeatherIndexPerTripCreator(WeatherIndexCreator):
             f" {self.aggregate_timeserie_operation}, {self.trip_location_column},"
             f" {self.trip_date_column}, {self.output_columns}, {self.vehicle_column})"
         )
+
+@dataclass
+class WeatherIndexOperationsToColumnMap:
+    """
+    A class to represent an operation to compute the weather index from a timeserie
+    """
+
+    select_period: SelectPeriodBeforeTripDate
+    output_column_to_aggregator: Dict[str, AggregateTimeSerie]
+
+    def __repr__(self) -> str:
+        dict_str = {k: str(v) for k, v in self.output_column_to_aggregator.items()}
+        return (
+            f"WeatherIndexOperationsToColumnMap({self.select_period}," f" {dict_str})"
+        )
+
+
+class MultipleWeatherIndexCreator(WeatherIndexCreator):
+    def __init__(
+        self,
+        operations_to_column_map: WeatherIndexOperationsToColumnMap,
+        trip_location_column: str,
+        trip_date_column: str,
+        vehicle_column: Optional[str] = None,
+        force_repeat: bool = False,
+    ):
+        """
+        Create multiple weather indexes for each trip in the dataset
+
+        Each index aggregates the selected time serie in different ways.
+        Since we only select the timeserie once for each trip, this should improve performances, compared to apply WeatherIndexCreator operation multiple times
+
+        Parameters
+        ----------
+        trip_date_column : str
+            The name of the column in the dataset containing the trip dates. NOTE that
+            this column must already have the ``datetime`` dtype
+        """
+        super().__init__(
+            trip_location_column=trip_location_column,
+            trip_date_column=trip_date_column,
+            output_columns=operations_to_column_map.output_column_to_aggregator.keys(),
+            vehicle_column=vehicle_column,
+            force_repeat=force_repeat,
+        )
+        self.operations_to_column_map = operations_to_column_map
+
+    def _compute_weather_index(self, row: pd.Series) -> float:
+        """
+        Add the weather index to the row
+
+        Parameters
+        ----------
+        row : pd.Series
+            The row to add the weather index to
+        """
+        if pd.isna(row[self.trip_location_column]) or pd.isna(
+            row[self.trip_date_column]
+        ):
+            return {col_name: pd.NA for col_name in self.output_columns}
+        else:
+            # Create a SingleTrip object
+            single_trip = SingleTrip(
+                index=row.name,
+                destination=row[self.trip_location_column],
+                start_date=row[self.trip_date_column],
+                trip_vehicle=(
+                    None
+                    if self.vehicle_column is None or pd.isna(row[self.vehicle_column])
+                    else TripVehicle(row[self.vehicle_column])
+                ),
+            )
+            # 1. Select period of the timeserie related to the single_trip
+            single_trip = self.operations_to_column_map.select_period(single_trip)
+            # 2. Compute a multiple weather indexes by applying different types of
+            # aggregators to the timeserie
+            output_dict = {}
+            for (
+                col_name,
+                aggregator,
+            ) in self.operations_to_column_map.output_column_to_aggregator.items():
+                single_trip = aggregator(single_trip)
+                output_dict[col_name] = single_trip[aggregator.output_attribute]
+
+            return output_dict
+
+    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
+        """
+        Add a column with the weather index.
+
+        Parameters
+        ----------
+        dataset : TripDataset
+            The dataset to add the weather index to
+        """
+        dataset.df[self.trip_date_column] = pd.to_datetime(
+            dataset.df[self.trip_date_column]
+        )
+        print(
+            f"Found {dataset.df[self.trip_date_column].isna().sum()} missing values"
+            " in ``trip_date_column``"
+        )
+        print(
+            f"Found {dataset.df[self.trip_location_column].isna().sum()} missing values"
+            " in ``trip_location_column``"
+        )
+        tqdm.pandas()
+        # Apply function to each row. The output will be a list of dictionaries (which
+        # is the output type of the function applied)
+        apply_output_dict = dataset.df.progress_apply(
+            self._compute_weather_index, axis=1
+        ).to_list()
+        df = pd.concat([dataset.df, pd.DataFrame(apply_output_dict)], axis=1)
+
+        # Count NA by column
+        nan_count_per_row_in_output_cols = df[self.output_columns].isna().sum(axis=1)
+        print(
+            f"Found {(nan_count_per_row_in_output_cols).sum()} missing values "
+            f"in {len(self.output_columns)} columns"
+        )
+
+        # Find which values have input_columns when output_columns are NA
+        # Rows with at least 1 NA in output_columns
+        rows_1_output_na = df[nan_count_per_row_in_output_cols > 0]
+        print(
+            "Rows with missing outputs have the following values for",
+            " ``trip_location_column``: \n",
+            rows_1_output_na[self.trip_location_column].value_counts(),
+        )
+
+        return df
+
+    def __repr__(self) -> str:
+        return (
+            f"MultipleWeatherIndexCreator({self.operations_to_column_map},"
+            f" {self.trip_location_column}, {self.trip_date_column})"
+        )

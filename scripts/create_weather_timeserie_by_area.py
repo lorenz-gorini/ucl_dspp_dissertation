@@ -13,6 +13,7 @@ import shapely
 import xarray as xr
 from joblib import Parallel, delayed
 from rioxarray.exceptions import NoDataInBounds
+from scipy.spatial import QhullError
 
 from src.geotimeserie_dataset import GeoTimeSerieDataset, WeatherTimeSeriesEnum
 from src.geotimeserie_operations import (
@@ -54,7 +55,9 @@ country_polygons = PolygonAreasFromFile(
     crs="EPSG:4326",
     shapefile_path=None,
     geo_df=europe_country_shp,
-).polygon_names_dict
+    # Fix provinces or countries that have a lot of islands or parts far away
+    # that would make the polygon too big and difficult to handle
+).polygon_names_dict(use_polygon_filter=True, distance_ratio=0.4, area_ratio=0.001)
 
 province_polygons = PolygonAreasFromFile(
     column_name="DEN_UTS",
@@ -64,19 +67,20 @@ province_polygons = PolygonAreasFromFile(
         "Municipal_Boundaries_of_Italy_2019/ProvCM01012023_g/"
         "ProvCM01012023_g_WGS84.shp"
     ),
-).polygon_names_dict
+).polygon_names_dict(use_polygon_filter=True, distance_ratio=0.4, area_ratio=0.001)
 
 
 def get_location_temperature(
     location_type: str,
     location_name: str,
     year: int,
-    polygon: shapely.Polygon,
+    multi_polygon: shapely.MultiPolygon,
     raw_ts_data: xr.Dataset,
 ) -> xr.Dataset:
     print(f"Extracting time serie for {(location_name, year)}")
     try:
-        minx, miny, maxx, maxy = polygon.bounds
+        minx, miny, maxx, maxy = multi_polygon.bounds
+
         exterior_polygon = shapely.Polygon(
             [(minx, miny), (minx, maxy), (maxx, maxy), (maxx, miny), (minx, miny)]
         )
@@ -86,7 +90,6 @@ def get_location_temperature(
                 start_time=f"{year}-01-01", end_time=f"{year}-12-31"
             ),
         ]
-
         if location_type == "province":
             operations += [
                 # we don't clip to the polygon here because we need to interpolate
@@ -98,11 +101,11 @@ def get_location_temperature(
                     dtype="float32",
                 ),
                 InterpolateOperation(target_resolution=0.03),
-                AreaClipOperation(area=polygon),
+                AreaClipOperation(area=multi_polygon),
             ]
         else:
             operations += [
-                AreaClipOperation(area=polygon),
+                AreaClipOperation(area=multi_polygon),
                 CastToTypeOperation(
                     variable_name=WeatherTimeSeriesEnum.MEAN_TEMPERATURE.value,
                     dtype="float32",
@@ -125,7 +128,8 @@ for location_type, polygons_per_location in [
     ("province", province_polygons),
 ]:
     timeseries_per_locat = []
-    for name, polygon in list(polygons_per_location.items()):
+
+    for name, polygon in sorted(list(polygons_per_location.items())):
         # I need to analye each year separately because the data is too big, so I first
         # need to slice the timeseries for each year and then combine them
         one_locat_multi_year_list = Parallel(n_jobs=3, backend="loky")(
@@ -133,7 +137,7 @@ for location_type, polygons_per_location in [
                 location_type=location_type,
                 location_name=name,
                 year=year,
-                polygon=polygon,
+                multi_polygon=polygon,
                 raw_ts_data=raw_ts_data,
             )
             for year in range(1997, 2020)
@@ -142,16 +146,17 @@ for location_type, polygons_per_location in [
         single_prov_ts_serie = pd.concat(one_locat_multi_year_list, axis=0)
         timeseries_per_locat.append(single_prov_ts_serie)
 
-    timeseries_per_locat_df = pd.DataFrame(timeseries_per_locat).T
-    timeseries_per_locat_df.index = pd.to_datetime(timeseries_per_locat_df.index)
-    timeseries_per_locat_df.reset_index(inplace=True, drop=False)
-    timeseries_per_locat_df.rename(columns={"index": "date"}, inplace=True)
+        # Save partial results
+        timeseries_per_locat_df = pd.DataFrame(timeseries_per_locat).T
+        timeseries_per_locat_df.index = pd.to_datetime(timeseries_per_locat_df.index)
+        timeseries_per_locat_df.reset_index(inplace=True, drop=False)
+        timeseries_per_locat_df.rename(columns={"index": "date"}, inplace=True)
 
-    file_path = (
-        "/mnt/c/Users/loreg/Documents/dissertation_data/"
-        f"timeseries_per_{location_type}.csv"
-    )
-    timeseries_per_locat_df.to_csv(file_path, index=False)
+        file_path = (
+            "/mnt/c/Users/loreg/Documents/dissertation_data/"
+            f"timeseries_per_{location_type}.csv"
+        )
+        timeseries_per_locat_df.to_csv(file_path, index=False)
 
 
 if POST_ANALYSIS:

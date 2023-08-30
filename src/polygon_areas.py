@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import geog
 import geopandas as gpd
@@ -65,6 +65,35 @@ def from_point_to_area(
     return shapely.Polygon(polygon)
 
 
+def filter_multi_polygons(
+    multi_polygon: shapely.MultiPolygon,
+    distance_ratio: float = 0.4,
+    area_ratio: float = 0.001,
+) -> Union[shapely.Polygon, shapely.MultiPolygon]:
+    """
+    Filter the polygons in the given multi_polygon to remove the small and far ones
+
+    Compute distance of each polygon centroid to the multi_polygon centroid
+    and select only the ones that are big and close enough.
+    NOTE: From `shapely` library: For multipolygons the centroid is weighted by
+    the area of each polygon
+    """
+    distances = [
+        poly.centroid.distance(multi_polygon.centroid) for poly in multi_polygon.geoms
+    ]
+    areas = [poly.area for poly in multi_polygon.geoms]
+
+    polygons = [
+        poly
+        for poly, dist, area in zip(multi_polygon.geoms, distances, areas)
+        if (dist < distance_ratio * max(distances) and area > area_ratio * sum(areas))
+    ]
+    if len(polygons) == 1:
+        return shapely.Polygon(polygons[0])
+    else:
+        return shapely.MultiPolygon(polygons)
+
+
 class PolygonAreasFromFile:
     def __init__(
         self,
@@ -116,7 +145,13 @@ class PolygonAreasFromFile:
         """
         return geo_df[geo_df[self.column_name] == area_name]
 
-    def get_polygon(self, area_name: str) -> shapely.Polygon:
+    def get_polygon(
+        self,
+        area_name: str,
+        use_polygon_filter: bool = False,
+        distance_ratio: float = 0.4,
+        area_ratio: float = 0.001,
+    ) -> shapely.Polygon:
         self.country_rows = self._area_rows_from_df(
             geo_df=self.geo_df, area_name=area_name
         )
@@ -124,7 +159,15 @@ class PolygonAreasFromFile:
             raise ValueError(f"No area found for {area_name}")
         elif self.country_rows.shape[0] > 1:
             raise ValueError(f"Multiple areas found for {area_name}")
-        return self.country_rows.iloc[0].geometry
+        polygons = self.country_rows.iloc[0].geometry
+        if use_polygon_filter and isinstance(polygons, shapely.MultiPolygon):
+            return filter_multi_polygons(
+                multi_polygon=polygons,
+                distance_ratio=distance_ratio,
+                area_ratio=area_ratio,
+            )
+        else:
+            return polygons
 
     @cached_property
     def polygon_names(self) -> List[str]:
@@ -138,8 +181,12 @@ class PolygonAreasFromFile:
         """
         return self.geo_df[self.column_name].unique().tolist()
 
-    @cached_property
-    def polygon_names_dict(self) -> Dict[str, shapely.Polygon]:
+    def polygon_names_dict(
+        self,
+        use_polygon_filter: bool = False,
+        distance_ratio: float = 0.4,
+        area_ratio: float = 0.001,
+    ) -> Dict[str, shapely.Polygon]:
         """
         Returns a dictionary mapping area names to the coordinates of their polygons
 
@@ -149,5 +196,11 @@ class PolygonAreasFromFile:
             Dictionary mapping area names to the coordinates of their polygons
         """
         return {
-            area_name: self.get_polygon(area_name) for area_name in self.polygon_names
+            area_name: self.get_polygon(
+                area_name,
+                use_polygon_filter=use_polygon_filter,
+                distance_ratio=distance_ratio,
+                area_ratio=area_ratio,
+            )
+            for area_name in self.polygon_names
         }

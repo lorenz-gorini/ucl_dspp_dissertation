@@ -121,6 +121,9 @@ def get_location_temperature(
     except NoDataInBounds:
         print(f"No data for {(location_name, year)}")
         return pd.Series(name=location_name)
+    except QhullError:
+        print(f"QhullError for {(location_name, year)}")
+        return pd.Series(name=location_name)
 
 
 for location_type, polygons_per_location in [

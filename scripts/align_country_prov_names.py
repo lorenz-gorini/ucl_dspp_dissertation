@@ -10,9 +10,10 @@ import pandas as pd
 from src.trip_dataset import TouristOrigin, TripDataset, VariableSubset
 
 # ================== Countries ==================
-timeseries_per_country_df = pd.read_csv(
-    "/mnt/c/Users/loreg/Documents/dissertation_data/timeseries_per_country.csv"
+FILE_PATH = (
+    "/mnt/c/Users/loreg/Documents/dissertation_data/timeserie_tx_per_country.csv"
 )
+timeseries_per_country_df = pd.read_csv(FILE_PATH)
 # read tourism data
 country_2019_dataset = TripDataset(
     variable_subset=VariableSubset.PRIMARY,
@@ -96,16 +97,14 @@ country_2019_dataset.df[
 country_2019_dataset.df.shape
 
 # Save the timeseries dataframe with the mapped columns
-timeseries_per_country_df_mapped.to_csv(
-    "/mnt/c/Users/loreg/Documents/dissertation_data/timeseries_per_country_mapped.csv",
-    index=False,
-)
+timeseries_per_country_df_mapped.to_csv(FILE_PATH, index=False)
 
 
 # ================== Provinces ==================
-timeseries_per_prov_df = pd.read_csv(
-    "/mnt/c/Users/loreg/Documents/dissertation_data/timeseries_per_province.csv"
+PROV_FILE_PATH = (
+    "/mnt/c/Users/loreg/Documents/dissertation_data/timeserie_tx_per_province_historical.csv"
 )
+timeseries_per_prov_df = pd.read_csv(PROV_FILE_PATH)
 
 # read tourism data
 province_2019_dataset = TripDataset(
@@ -138,10 +137,7 @@ ts_provinces = set(s for s in timeseries_per_prov_df_mapped.columns)
 ts_provinces - tour_provinces
 tour_provinces - ts_provinces
 
-timeseries_per_prov_df_mapped.to_csv(
-    "/mnt/c/Users/loreg/Documents/dissertation_data/timeseries_per_province_mapped.csv",
-    index=False,
-)
+timeseries_per_prov_df_mapped.to_csv(PROV_FILE_PATH, index=False)
 
 # Check how many provinces are NaN in the tourism dataset
 province_2019_dataset.df["PROVINCIA_VISITATA_mapped"].isna().sum()

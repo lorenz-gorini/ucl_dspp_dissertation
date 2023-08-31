@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from joblib import Parallel, delayed
 import googlemaps
 import numpy as np
 import pandas as pd

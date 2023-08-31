@@ -829,7 +829,7 @@ class MultipleWeatherIndexCreator(WeatherIndexCreator):
 
             return output_dict
 
-    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
+    def __call__(self, dataset: TripDataset, n_jobs: int = 3) -> pd.DataFrame:
         """
         Add a column with the weather index.
 
@@ -852,9 +852,11 @@ class MultipleWeatherIndexCreator(WeatherIndexCreator):
         tqdm.pandas()
         # Apply function to each row. The output will be a list of dictionaries (which
         # is the output type of the function applied)
-        apply_output_dict = dataset.df.progress_apply(
-            self._compute_weather_index, axis=1
-        ).to_list()
+
+        apply_output_dict = Parallel(n_jobs=n_jobs, backend="loky")(
+            delayed(self._compute_weather_index)(row=row)
+            for _, row in tqdm(dataset.df.iterrows())
+        )
         df = pd.concat([dataset.df, pd.DataFrame(apply_output_dict)], axis=1)
 
         # Count NA by column

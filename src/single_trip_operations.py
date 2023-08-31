@@ -107,9 +107,7 @@ class SelectConstantPeriodBeforeDate(SelectPeriodBeforeTripDate):
         This operation will clip the timeseries differently for each row of
         ``timeserie_df`` that is passed to __call__ method. Particularly, the clipped
         timeserie will go from:
-        `ref_date - period_length/2`
-        until
-        `ref_date + period_length/2`.
+        `ref_date` until `ref_date + period_length`.
 
         The ``ref_date`` is computed as:
         `ref_date = trip.start_date - time_before_date`
@@ -162,13 +160,12 @@ class SelectConstantPeriodBeforeDate(SelectPeriodBeforeTripDate):
                     self.timeserie_df[self.date_column]
                     >= trip.start_date
                     - self.time_before_date
-                    - self.period_length / 2
                     + datetime.timedelta(days=1)
                     # +1 because the trip start date is included in the period
                 )
                 & (
                     self.timeserie_df[self.date_column]
-                    <= trip.start_date - self.time_before_date + self.period_length / 2
+                    <= trip.start_date - self.time_before_date + self.period_length
                 )
             ][trip.location]
         except KeyError as e:

@@ -73,9 +73,10 @@ class TimeResampleOperation(GeoTimeSerieOperation):
 
 
 class InterpolateOperation(GeoTimeSerieOperation):
-    def __init__(self, target_resolution: float = 0.01) -> None:
+    def __init__(self, dataset_variable: str, target_resolution: float = 0.01) -> None:
         super().__init__()
         self.target_resol = target_resolution
+        self.dataset_variable = dataset_variable
 
     def __call__(self, dataset: xr.Dataset) -> xr.Dataset:
         """
@@ -83,8 +84,8 @@ class InterpolateOperation(GeoTimeSerieOperation):
 
         Parameters
         ----------
-        area : shapely.geometry.polygon.Polygon
-            Polygon representing the area to interpolate to
+        dataset : xr.Dataset
+            Dataset containing the entire timeserie data
 
         Returns
         -------
@@ -100,7 +101,7 @@ class InterpolateOperation(GeoTimeSerieOperation):
 
         ds_interp_empty = xr.Dataset(
             data_vars={
-                "tg": (
+                self.dataset_variable: (
                     ["time", "latitude", "longitude"],
                     # Create array with nan
                     np.full(
@@ -121,7 +122,10 @@ class InterpolateOperation(GeoTimeSerieOperation):
 
         # Interpolate the data by merging it with the new grid
         ds_interp_merge = xr.merge([dataset, ds_interp_empty])
-        ds_interp_merge["tg"] = ds_interp_merge.tg.rio.write_nodata(np.nan)
+
+        ds_interp_merge[self.dataset_variable] = ds_interp_merge[
+            self.dataset_variable
+        ].rio.write_nodata(np.nan)
         ds_interp = ds_interp_merge.rio.interpolate_na(
             method="linear",  # kwargs={"fill_value": "extrapolate"},
         )

@@ -37,8 +37,12 @@ class SelectPeriodBeforeTripDate(SingleTripOperation):
 
         This operation will clip the timeseries differently for each row of
         ``datetime_df`` that is passed to __call__ method. Particularly, the clipped
-        timeserie will go from the reference date (`ref_date`), until
-        `ref_date + period_length`. The ``ref_date`` is computed as:
+        timeserie will be centered around the reference date (``ref_date``) and it will
+        last ``period_length``:
+
+        ( ref_date - period_length/2 , ref_date + period_length/2 )
+
+        The ``ref_date`` is computed as:
 
         `ref_date = trip.start_date - time_before_date`,
 
@@ -106,13 +110,19 @@ class SelectConstantPeriodBeforeDate(SelectPeriodBeforeTripDate):
 
         This operation will clip the timeseries differently for each row of
         ``timeserie_df`` that is passed to __call__ method. Particularly, the clipped
-        timeserie will go from:
-        `ref_date` until `ref_date + period_length`.
+        timeserie will be centered around the reference date (``ref_date``) and it will
+        last ``period_length``:
+
+        ( ref_date - period_length/2 , ref_date + period_length/2 )
 
         The ``ref_date`` is computed as:
+
         `ref_date = trip.start_date - time_before_date`
+
         where `trip` is a representation of the dataset row that is being
-        processed.
+        processed.  This is to reproduce the decision-making process of tourists,
+        which should be based on deciding what weather will be like around their date
+        of departure, based on the weather in the timespan around their departure.
 
         Parameters
         ----------
@@ -160,12 +170,13 @@ class SelectConstantPeriodBeforeDate(SelectPeriodBeforeTripDate):
                     self.timeserie_df[self.date_column]
                     >= trip.start_date
                     - self.time_before_date
+                    - self.period_length / 2
                     + datetime.timedelta(days=1)
                     # +1 because the trip start date is included in the period
                 )
                 & (
                     self.timeserie_df[self.date_column]
-                    <= trip.start_date - self.time_before_date + self.period_length
+                    <= trip.start_date - self.time_before_date + self.period_length / 2
                 )
             ][[self.date_column, trip.location]]
             # Set the index to the date column

@@ -90,13 +90,13 @@ residence_country_index_creator = MultipleWeatherIndexCreator(
             location_column="STATO_RESIDENZA_mapped",
             # 3 months before leaving, 3 months period
             period_length=datetime.timedelta(days=90),
-            time_before_date=datetime.timedelta(days=90),
+            time_before_date=datetime.timedelta(days=45),
         ),
         output_column_to_aggregator={
-            f"STATO_RESIDENZA_{weather_timeserie.value}_3m_before_3m_period_mean": MeanAggregator(),
-            f"STATO_RESIDENZA_{weather_timeserie.value}_3m_before_3m_period_std": StdAggregator(),
-            f"STATO_RESIDENZA_{weather_timeserie.value}_3m_before_3m_period_max": MaxAggregator(),
-            f"STATO_RESIDENZA_{weather_timeserie.value}_3m_before_3m_period_heatwaves": HeatwavesAggregator(
+            f"STATO_RESIDENZA_{weather_timeserie.value}_45d_before_3m_period_mean": MeanAggregator(),
+            f"STATO_RESIDENZA_{weather_timeserie.value}_45d_before_3m_period_std": StdAggregator(),
+            f"STATO_RESIDENZA_{weather_timeserie.value}_45d_before_3m_period_max": MaxAggregator(),
+            f"STATO_RESIDENZA_{weather_timeserie.value}_45d_before_3m_period_heatwaves": HeatwavesAggregator(
                 historical_data=timeserie_tx_per_country_historical, date_column="DATE"
             ),
         },
@@ -142,13 +142,13 @@ residence_province_index_creator = MultipleWeatherIndexCreator(
             location_column="PROV_RESIDENZA_mapped",
             # 3 months before leaving, 3 months period
             period_length=datetime.timedelta(days=90),
-            time_before_date=datetime.timedelta(days=90),
+            time_before_date=datetime.timedelta(days=45),
         ),
         output_column_to_aggregator={
-            f"PROV_RESIDENZA_{weather_timeserie.value}_3m_before_3m_period_mean": MeanAggregator(),
-            f"PROV_RESIDENZA_{weather_timeserie.value}_3m_before_3m_period_std": StdAggregator(),
-            f"PROV_RESIDENZA_{weather_timeserie.value}_3m_before_3m_period_max": MaxAggregator(),
-            f"PROV_RESIDENZA_{weather_timeserie.value}_3m_before_3m_period_heatwaves": HeatwavesAggregator(
+            f"PROV_RESIDENZA_{weather_timeserie.value}_45d_before_3m_period_mean": MeanAggregator(),
+            f"PROV_RESIDENZA_{weather_timeserie.value}_45d_before_3m_period_std": StdAggregator(),
+            f"PROV_RESIDENZA_{weather_timeserie.value}_45d_before_3m_period_max": MaxAggregator(),
+            f"PROV_RESIDENZA_{weather_timeserie.value}_45d_before_3m_period_heatwaves": HeatwavesAggregator(
                 historical_data=timeserie_tx_per_province_historical, date_column="DATE"
             ),
         },

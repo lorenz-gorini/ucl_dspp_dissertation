@@ -321,7 +321,7 @@ class AggregateTimeSerie(SingleTripOperation):
         super().__init__()
 
     @abstractmethod
-    def aggregate(self, timeserie: Union[pd.Series, np.ndarray]) -> float:
+    def aggregate(self, trip: SingleTrip) -> float:
         pass
 
     def __call__(self, trip: SingleTrip) -> SingleTrip:
@@ -330,7 +330,10 @@ class AggregateTimeSerie(SingleTripOperation):
                 "The trip does not have a weather timeserie. Did you forget to apply"
                 " the SelectPeriodBeforeTripDate operation?"
             )
-        trip[self.output_attribute] = self.aggregate(trip.weather_timeserie)
+        elif trip.weather_timeserie.isna().all():
+            trip[self.output_attribute] = np.nan
+        else:
+            trip[self.output_attribute] = self.aggregate(trip)
         return trip
 
     @property
@@ -339,40 +342,150 @@ class AggregateTimeSerie(SingleTripOperation):
 
 
 class MeanAggregator(AggregateTimeSerie):
-    def aggregate(self, timeserie: Union[pd.Series, np.ndarray]) -> float:
-        return np.mean(timeserie)
+    def aggregate(self, trip: SingleTrip) -> float:
+        return np.mean(trip.weather_timeserie)
 
     def __repr__(self):
         return "MeanAggregator()"
 
 
 class SumAggregator(AggregateTimeSerie):
-    def aggregate(self, timeserie: Union[pd.Series, np.ndarray]) -> float:
-        return np.sum(timeserie)
+    def aggregate(self, trip: SingleTrip) -> float:
+        return np.sum(trip.weather_timeserie)
 
     def __repr__(self):
         return "SumAggregator()"
 
 
 class MaxAggregator(AggregateTimeSerie):
-    def aggregate(self, timeserie: Union[pd.Series, np.ndarray]) -> float:
-        return np.max(timeserie)
+    def aggregate(self, trip: SingleTrip) -> float:
+        return np.max(trip.weather_timeserie)
 
     def __repr__(self):
         return "MaxAggregator()"
 
 
 class MedianAggregator(AggregateTimeSerie):
-    def aggregate(self, timeserie: Union[pd.Series, np.ndarray]) -> float:
-        return np.median(timeserie)
+    def aggregate(self, trip: SingleTrip) -> float:
+        return np.median(trip.weather_timeserie)
 
     def __repr__(self):
         return "MedianAggregator()"
 
 
 class StdAggregator(AggregateTimeSerie):
-    def aggregate(self, timeserie: Union[pd.Series, np.ndarray]) -> float:
-        return np.std(timeserie)
+    def aggregate(self, trip: SingleTrip) -> float:
+        return np.std(trip.weather_timeserie)
 
     def __repr__(self):
         return "StdAggregator()"
+
+
+class HeatwavesAggregator(AggregateTimeSerie):
+    def __init__(
+        self,
+        historical_data: pd.DataFrame,
+        date_column: str,
+    ) -> None:
+        """
+        Count the number of days considered as heatwaves (based on WMO)
+
+        The heatwaves are defined as days of the timeserie data when the daily
+        maximum temperature of more than 5 consecutive days exceeds the
+        average maximum temperature by 5 °C, with regards to the same days of
+        the years 1961-1990 (see https://doi.org/10.3354/cr019193)
+
+        Parameters
+        ----------
+        historical_data : pd.DataFrame
+            Dataframe containing the historical data to use as reference to compute
+            the heatwaves. This is expected to have the daily means of the maximum
+            temperatures for each day of the year. The daily means are computed by
+            considering the years 1961-1990 as reference.
+            The date of the year is expected to be in the ``date_column`` and is
+            expected to contain always the same year.
+        date_column : str
+            Name of the column containing the dates in the ``historical_data``
+            dataframe.
+        reference_year : int, optional
+            Year to use as reference to compute the heatwaves, by default 1980
+        """
+        super().__init__()
+        self.historical_data = historical_data.copy()
+        self.date_column = date_column
+        self.historical_data[self.date_column] = pd.to_datetime(
+            self.historical_data[self.date_column]
+        )
+
+        self.historical_data = self.historical_data.set_index(
+            self.date_column, drop=True
+        )
+        reference_years = self.historical_data.index.year.unique()
+        if len(reference_years) != 1:
+            raise ValueError(
+                "The historical data must contain only one year of data, but it "
+                f"contains {reference_years}"
+            )
+        else:
+            self.reference_year = reference_years[0]
+
+    def aggregate(self, trip: SingleTrip) -> float:
+        """
+        Count the number of days considered as heatwaves (based on WMO)
+
+        The heatwaves are defined as days of the timeserie data when the daily
+        maximum temperature of more than 5 consecutive days exceeds the
+        average maximum temperature by 5 °C, with regards to the same days of
+        the years 1961-1990 (see https://doi.org/10.3354/cr019193).
+
+        Parameters
+        ----------
+        trip : SingleTrip
+            Trip containing:
+            - the timeserie data to analyze which we extract the aggregated index from.
+            Its indices must be the timeserie dates
+            - the location related to the timeserie data
+
+        Returns
+        -------
+        float
+            Number of days in timeserie data considered as heatwaves
+        """
+        if trip.weather_timeserie.isna().all():
+            return np.nan
+
+        trip_timeserie = trip.weather_timeserie.copy()
+        trip_timeserie.index = trip_timeserie.index.map(
+            lambda x: x.replace(year=self.reference_year)
+        )
+
+        # Calculate the rolling average of maximum temperatures
+        historical_avg_df = self.historical_data.loc[
+            trip_timeserie.index, trip.location
+        ]
+        # rolling_avg = period_hist_data.rolling(window=datetime.timedelta(days=5)).mean()
+
+        # Calculate the difference between daily max temperatures and rolling
+        # average of historical data
+        temp_difference = trip_timeserie - historical_avg_df
+
+        # Identify days with temperature differences exceeding 5 °C
+        days_above_hist_thresh = temp_difference > 5
+        # Compute how many days are above historical threshold out of a 5-day
+        # rolling window. If they are 5, then it is a heatwave because they are also
+        # consecutive
+        consecutive_days_above_thresh = days_above_hist_thresh.rolling(window=5).sum()
+        heatwave_days = consecutive_days_above_thresh == 5
+        # Cluster the consecutive True values (>5 hot consecutive days) and assign
+        # a unique id to each of them, so that we understand how many heatwave periods
+        # there are
+        heatwave_cluster_ids = (heatwave_days != heatwave_days.shift()).cumsum()[
+            heatwave_days
+        ]
+        # Count the number of clusters/heatwaves in the period
+        heatwave_sequences_count = len(heatwave_cluster_ids.unique())
+
+        return np.sum(heatwave_days) + 5 * heatwave_sequences_count
+
+    def __repr__(self):
+        return f"HeatwavesAggregator({self.date_column})"

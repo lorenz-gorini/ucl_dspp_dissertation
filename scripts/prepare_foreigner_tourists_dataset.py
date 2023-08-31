@@ -128,19 +128,19 @@ for year in tqdm(range(1997, 2020, 1)):
     )
     initial_nrows = dataset.df.shape[0]
     print("year ", year)
-    dataset.apply(prov_code_mapper)
-    dataset.apply(replace_names_by_map)
-    dataset.apply(location_to_coord_mapper)
-    dataset.apply(coord_to_elevation_mapper)
+    dataset = dataset.apply(prov_code_mapper, save=False)
+    dataset = dataset.apply(replace_names_by_map, save=False)
+    dataset = dataset.apply(location_to_coord_mapper, save=False)
+    dataset = dataset.apply(coord_to_elevation_mapper, save=False)
 
-    dataset.apply(residence_country_mapper)
-    dataset.apply(vehicle_type_mapper)
-    dataset.apply(datetime_converter)
-    dataset.apply(trip_start_date_creator)
+    dataset = dataset.apply(residence_country_mapper, save=False)
+    dataset = dataset.apply(vehicle_type_mapper, save=False)
+    dataset = dataset.apply(datetime_converter, save=False)
+    dataset = dataset.apply(trip_start_date_creator, save=False)
     assert (
         initial_nrows == dataset.df.shape[0]
     ), f"{initial_nrows - dataset.df.shape[0]} rows were dropped, check the code"
 
-    dataset.apply(filter_european_tourists_to_italy)
+    dataset = dataset.apply(filter_european_tourists_to_italy, save=True)
 
     print("OK")

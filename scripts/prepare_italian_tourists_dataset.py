@@ -91,7 +91,7 @@ filter_italian_tourists_to_europe = FilterCountries(
 
 # 2. Load the data by year and compute the aggregated values by year and
 # by country of origin
-for year in tqdm(range(1997, 2023, 1)):
+for year in tqdm(range(1997, 2020, 1)):
     dataset = TripDataset(
         variable_subset=VariableSubset.PRIMARY,
         tourist_origin=TouristOrigin.ITALIANS,
@@ -100,19 +100,19 @@ for year in tqdm(range(1997, 2023, 1)):
         processed_folder=Path(
             "/mnt/c/Users/loreg/Documents/dissertation_data/processed"
         ),
-        force_raw=False,
+        force_raw=True,
     )
     initial_nrows = dataset.df.shape[0]
     print("year ", year)
 
-    dataset.apply(visited_country_code_mapper)
-    dataset.apply(residence_province_code_mapper)
-    dataset.apply(replace_province_names_by_map)
-    dataset.apply(vehicle_type_mapper)
-    dataset.apply(datetime_converter)
-    dataset.apply(trip_start_date_creator)
+    dataset = dataset.apply(visited_country_code_mapper, save=False)
+    dataset = dataset.apply(residence_province_code_mapper, save=False)
+    dataset = dataset.apply(replace_province_names_by_map, save=False)
+    dataset = dataset.apply(vehicle_type_mapper, save=False)
+    dataset = dataset.apply(datetime_converter, save=False)
+    dataset = dataset.apply(trip_start_date_creator, save=False)
     assert (
         initial_nrows == dataset.df.shape[0]
     ), f"{initial_nrows - dataset.df.shape[0]} rows were dropped, check the code"
 
-    dataset.apply(filter_italian_tourists_to_europe)
+    dataset = dataset.apply(filter_italian_tourists_to_europe, save=True)

@@ -149,13 +149,13 @@ for tourist_origin in [
             column_to_dtype_map={"CHIAVE": str},
             force_raw=False,
         )
-        dataset.apply(datetime_converter)
+        dataset = dataset.apply(datetime_converter, save=False)
         if tourist_origin == TouristOrigin.ITALIANS:
-            dataset.apply(visited_country_index_creator)
-            dataset.apply(residence_province_index_creator)
+            dataset = dataset.apply(visited_country_index_creator, save=True)
+            dataset = dataset.apply(residence_province_index_creator, save=True)
         else:
-            dataset.apply(visited_province_index_creator)
-            dataset.apply(residence_country_index_creator)
+            dataset = dataset.apply(visited_province_index_creator, save=True)
+            dataset = dataset.apply(residence_country_index_creator, save=True)
 
     else:
         for year in tqdm(range(1997, 2023, 1)):
@@ -170,13 +170,13 @@ for tourist_origin in [
                 force_raw=False,
                 column_to_dtype_map={"CHIAVE": str},
             )
-            dataset.apply(datetime_converter)
+            dataset = dataset.apply(datetime_converter, save=False)
             if tourist_origin == TouristOrigin.ITALIANS:
-                dataset.apply(visited_country_index_creator)
-                dataset.apply(residence_province_index_creator)
+                dataset = dataset.apply(visited_country_index_creator, save=True)
+                dataset = dataset.apply(residence_province_index_creator, save=True)
             else:
-                dataset.apply(visited_province_index_creator)
-                dataset.apply(residence_country_index_creator)
+                dataset = dataset.apply(visited_province_index_creator, save=True)
+                dataset = dataset.apply(residence_country_index_creator, save=True)
 
 
 if POST_ANALYSIS:

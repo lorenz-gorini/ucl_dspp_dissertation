@@ -140,25 +140,30 @@ class GenericTripDataset:
                     )
         return is_applied
 
-    def apply(self, operation: "TripDatasetOperation") -> "TripDataset":
+    def apply(
+        self, operation: "TripDatasetOperation", save: bool = False
+    ) -> "TripDataset":
         """
         Apply an operation to the dataset
 
-        When the ``operation`` is applied, the dataset keeps track of it by saving its
-        string representation in the ``operations`` column of the dataset (that can
+        When the ``operation`` is applied, the dataset keeps track of it by saving
+        its string representation in the ``operations`` column of the dataset (that can
         be accessed with ``operations`` property), so that it can also be skipped if
         it is already applied.
 
         NOTE
         ----
-        After applying each operation, the dataset is saved to disk in the
-        ``processed_folder``, so that the operations are not repeated if the script
-        is interrupted and we load the same dataset again.
+        When ``save`` is True, the dataset overwrites the related CSV file in the
+        ``processed_folder`` every time an ``operation`` is applied, so that the
+        operations are not repeated if the script is interrupted and we load the
+        same dataset again.
 
         Parameters
         ----------
         operation : TripDatasetOperation
             The operation to apply to the dataset.
+        save : bool, optional
+            If True, the dataset will be saved to disk after applying the operation.
 
         Returns
         -------
@@ -178,7 +183,8 @@ class GenericTripDataset:
             # Restore the operation list by writing them on the new dataset
             self._restore_operations(operation_cache)
             self._add_operation(operation)
-            self.save_df()
+            if save:
+                self.save_df()
         return self
 
     def __repr__(self) -> str:

@@ -17,7 +17,7 @@ class SingleTrip:
     def __init__(
         self,
         index: int,
-        destination: str,
+        location: str,
         start_date: datetime.datetime,
         weather_index: Optional[str] = None,
         trip_vehicle: TripVehicle = None,
@@ -36,7 +36,7 @@ class SingleTrip:
             Date when the trip started
         """
         self.index = index
-        self.destination = destination
+        self.location = location
         self.start_date = start_date
         self.weather_index = weather_index
         self.trip_vehicle = trip_vehicle

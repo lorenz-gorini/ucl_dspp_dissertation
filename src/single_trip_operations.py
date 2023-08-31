@@ -170,14 +170,14 @@ class SelectConstantPeriodBeforeDate(SelectPeriodBeforeTripDate):
                     self.timeserie_df[self.date_column]
                     <= trip.start_date - self.time_before_date + self.period_length / 2
                 )
-            ][trip.destination]
+            ][trip.location]
         except KeyError as e:
             print(f"KeyError: {e}")
             period_timeserie = pd.Series([np.nan] * self.period_length.days)
 
         return SingleTrip(
             index=trip.index,
-            destination=trip.destination,
+            location=trip.location,
             start_date=trip.start_date,
             weather_index=trip.weather_index,
             trip_vehicle=trip.trip_vehicle,
@@ -275,7 +275,7 @@ class SelectVariablePeriodBeforeDateByVehicle(SelectPeriodBeforeTripDate):
                         <= trip.start_date
                         - self.time_before_date_by_vehicle[trip.trip_vehicle]
                     )
-                ][trip.destination]
+                ][trip.location]
 
             except KeyError as e:
                 print(f"KeyError: {e}")
@@ -285,7 +285,7 @@ class SelectVariablePeriodBeforeDateByVehicle(SelectPeriodBeforeTripDate):
 
         return SingleTrip(
             index=trip.index,
-            destination=trip.destination,
+            location=trip.location,
             start_date=trip.start_date,
             weather_index=trip.weather_index,
             trip_vehicle=trip.trip_vehicle,

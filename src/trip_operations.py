@@ -702,7 +702,7 @@ class WeatherIndexPerTripCreator(WeatherIndexCreator):
             # Create a SingleTrip object
             single_trip = SingleTrip(
                 index=row.name,
-                destination=row[self.trip_location_column],
+                location=row[self.trip_location_column],
                 start_date=row[self.trip_date_column],
                 trip_vehicle=(
                     None
@@ -807,7 +807,7 @@ class MultipleWeatherIndexCreator(WeatherIndexCreator):
             # Create a SingleTrip object
             single_trip = SingleTrip(
                 index=row.name,
-                destination=row[self.trip_location_column],
+                location=row[self.trip_location_column],
                 start_date=row[self.trip_date_column],
                 trip_vehicle=(
                     None

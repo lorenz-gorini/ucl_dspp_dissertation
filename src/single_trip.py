@@ -34,6 +34,14 @@ class SingleTrip:
             Name of the destination of the trip
         start_date : datetime.datetime
             Date when the trip started
+
+        weather_index : Optional[str], optional
+            Index of the weather timeserie, by default None
+        trip_vehicle : TripVehicle, optional
+            Type of vehicle used for the trip, by default None
+        weather_timeserie : Optional[Union[pd.Series, np.ndarray]], optional
+            Timeserie of weather data for the trip, by default None
+            NOTE: This must contain the dates related to the weather timeserie as index
         """
         self.index = index
         self.location = location

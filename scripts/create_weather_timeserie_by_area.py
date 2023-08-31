@@ -27,7 +27,15 @@ from src.geotimeserie_operations import (
 from src.polygon_areas import PolygonAreasFromFile
 
 POST_ANALYSIS = False
-timeserie_name = WeatherTimeSeriesEnum.MEAN_TEMPERATURE
+timeserie_name = WeatherTimeSeriesEnum.MAX_TEMPERATURE
+HISTORICAL = False
+
+if HISTORICAL:
+    FIRST_YEAR = 1961
+    LAST_YEAR = 1990  # this is included until 31th Dec in the time period
+else:
+    FIRST_YEAR = 1997
+    LAST_YEAR = 2019  # this is included until 31th Dec in the time period
 
 raw_ts_data = GeoTimeSerieDataset(
     timeserie_name=timeserie_name,
@@ -39,7 +47,11 @@ raw_ts_data = GeoTimeSerieDataset(
 )
 
 raw_ts_data = raw_ts_data.apply(
-    [TimeRangeClipOperation(start_time=f"1980-01-01", end_time="2019-12-31")]
+    [
+        TimeRangeClipOperation(
+            start_time=f"{FIRST_YEAR}-01-01", end_time=f"{LAST_YEAR}-12-31"
+        )
+    ]
 )
 
 # read shapefile
@@ -97,17 +109,19 @@ def get_location_temperature(
                 # interpolation
                 AreaClipOperation(area=exterior_polygon),
                 CastToTypeOperation(
-                    variable_name=WeatherTimeSeriesEnum.MEAN_TEMPERATURE.value,
+                    variable_name=timeserie_name.value,
                     dtype="float32",
                 ),
-                InterpolateOperation(target_resolution=0.03),
+                InterpolateOperation(
+                    target_resolution=0.03, dataset_variable=timeserie_name.value
+                ),
                 AreaClipOperation(area=multi_polygon),
             ]
         else:
             operations += [
                 AreaClipOperation(area=multi_polygon),
                 CastToTypeOperation(
-                    variable_name=WeatherTimeSeriesEnum.MEAN_TEMPERATURE.value,
+                    variable_name=timeserie_name.value,
                     dtype="float32",
                 ),
             ]
@@ -115,9 +129,9 @@ def get_location_temperature(
 
         one_prov_one_year_ts = raw_ts_data.apply(operations)
 
-        return one_prov_one_year_ts.to_dataframe()[
-            WeatherTimeSeriesEnum.MEAN_TEMPERATURE.value
-        ].rename(location_name)
+        return one_prov_one_year_ts.to_dataframe()[timeserie_name.value].rename(
+            location_name
+        )
     except NoDataInBounds:
         print(f"No data for {(location_name, year)}")
         return pd.Series(name=location_name)
@@ -143,7 +157,7 @@ for location_type, polygons_per_location in [
                 multi_polygon=polygon,
                 raw_ts_data=raw_ts_data,
             )
-            for year in range(1997, 2020)
+            for year in range(FIRST_YEAR, LAST_YEAR + 1)
         )
         # Combine the timeseries of each year into a single pd.Series
         single_prov_ts_serie = pd.concat(one_locat_multi_year_list, axis=0)
@@ -157,13 +171,13 @@ for location_type, polygons_per_location in [
 
         file_path = (
             "/mnt/c/Users/loreg/Documents/dissertation_data/"
-            f"timeseries_per_{location_type}.csv"
+            f"timeserie_{timeserie_name.value}_per_{location_type}.csv"
         )
         timeseries_per_locat_df.to_csv(file_path, index=False)
 
 
 if POST_ANALYSIS:
-    timeserie_name = WeatherTimeSeriesEnum.MEAN_TEMPERATURE
+    timeserie_name = WeatherTimeSeriesEnum.MAX_TEMPERATURE
     location_type = "province"
     timeseries_per_locat_df = pd.read_csv(
         "/mnt/c/Users/loreg/Documents/dissertation_data/"

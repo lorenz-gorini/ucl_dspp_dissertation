@@ -769,6 +769,7 @@ class MultipleWeatherIndexCreator(WeatherIndexCreator):
         trip_date_column: str,
         vehicle_column: Optional[str] = None,
         force_repeat: bool = False,
+        n_jobs: int = 4,
     ):
         """
         Create multiple weather indexes for each trip in the dataset
@@ -790,6 +791,7 @@ class MultipleWeatherIndexCreator(WeatherIndexCreator):
             force_repeat=force_repeat,
         )
         self.operations_to_column_map = operations_to_column_map
+        self.n_jobs = n_jobs
 
     def _compute_weather_index(self, row: pd.Series) -> float:
         """
@@ -830,7 +832,7 @@ class MultipleWeatherIndexCreator(WeatherIndexCreator):
 
             return output_dict
 
-    def __call__(self, dataset: TripDataset, n_jobs: int = 3) -> pd.DataFrame:
+    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
         """
         Add a column with the weather index.
 
@@ -854,7 +856,7 @@ class MultipleWeatherIndexCreator(WeatherIndexCreator):
         # Apply function to each row. The output will be a list of dictionaries (which
         # is the output type of the function applied)
 
-        apply_output_dict = Parallel(n_jobs=n_jobs, backend="loky")(
+        apply_output_dict = Parallel(n_jobs=self.n_jobs, backend="loky")(
             delayed(self._compute_weather_index)(row=row)
             for _, row in tqdm(dataset.df.iterrows())
         )

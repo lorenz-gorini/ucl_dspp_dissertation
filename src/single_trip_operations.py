@@ -202,6 +202,164 @@ class SelectConstantPeriodBeforeDate(SelectPeriodBeforeTripDate):
         )
 
 
+class SelectPeriodBeforeDateMultipleYears(SelectPeriodBeforeTripDate):
+    def __init__(
+        self,
+        timeserie_df: pd.DataFrame,
+        date_column: str,
+        location_column: str,
+        years_same_period: int,
+        period_length_per_year: datetime.timedelta,
+        first_year_before_date: int,
+        days_before_trip_period: datetime.timedelta = datetime.timedelta(days=0),
+    ):
+        """
+        Select the data for the same time period in multiple years before trip date
+
+        This operation will clip the timeseries differently for each row of
+        ``timeserie_df`` that is passed to __call__ method. Particularly, the clipped
+        timeserie will be centered around the reference date (``ref_date``) and it will
+        last ``period_length_per_year`` for each year in ``years_same_period``:
+
+        ( ref_date - period_length/2 , ref_date + period_length/2 )
+
+        The ``ref_date`` spans through multiple years:
+
+        ``year`` = 0 .. ``years_same_period``
+
+        and it is computed as:
+
+        `ref_date = trip.start_date - (first_year_before_date - year) * 365 days
+                     - days_before_trip_period`
+
+        where `trip` is a representation of the dataset row that is being
+        processed.  This is to reproduce the decision-making process of tourists,
+        which should be based on deciding what weather will be like around their date
+        of departure, based on the weather in the timespan around their departure.
+
+        Example
+        -------
+        >>> SelectPeriodBeforeDateMultipleYears(
+        ...     timeserie_df,
+        ...     date_column="date",
+        ...     location_column="location",
+        ...     years_same_period=5,
+        ...     period_length_per_year=datetime.timedelta(days=60),
+        ...     first_year_before_date=5,
+        ...     days_before_trip_period=datetime.timedelta(days=0)
+        ... )
+        Let's say that the trip start date is 2020-04-01.
+        The reference date for the first year will be:
+        2020-04-01 - (5 - 0) * 365 - 0 = 2015-04-01
+        The reference date for the second year will be:
+        2020-04-01 - (5 - 1) * 365 - 0 = 2016-04-01
+        ...
+        So the final selected timeserie will be composed by the time periods:
+        (2015-03-01, 2015-05-01) + (2016-03-01, 2016-05-01) +
+        (2017-03-01, 2017-05-01) + (2018-03-01, 2018-05-01) +
+        (2019-03-01, 2019-05-01).
+
+        Parameters
+        ----------
+        timeserie_df : pd.DataFrame
+            Dataframe containing the datetimes to use as reference to compute the time
+            period, used to filter the timeserie data.
+        date_column : str
+            Name of the column containing the dates in the dataframe.
+        location_column : str
+            Name of the column containing the locations in the dataframe. These will be
+            used to select the timeserie related to the given locations.
+        years_same_period : int
+            Number of consecutive years before ``trip.start_date`` to consider to
+            select the timeserie period.
+        period_length_per_year : datetime.timedelta
+            Length of the time period (in days) for each year in ``years_same_period``
+            to select the timeserie data.
+        first_year_before_date : int
+            Number of years before ``trip.start_date`` when to start counting for
+            ``years_same_period``. If None, it will be set equal to ``years_same_period``.
+        days_before_trip_period : datetime.timedelta, optional
+            Time period before the reference date from ``date_column``.
+            That will be the central date of the clipped timeserie.
+            Default is ``datetime.timedelta(days=0)``
+        """
+        super().__init__(
+            timeserie_df=timeserie_df,
+            date_column=date_column,
+            location_column=location_column,
+        )
+        self.years_same_period = years_same_period
+        self.period_length_per_year = period_length_per_year
+        self.first_year_before_date = first_year_before_date
+        self.days_before_trip_period = days_before_trip_period
+
+    def __call__(self, trip: SingleTrip) -> SingleTrip:
+        """
+        Select the timeserie data for the time period before specific date
+
+        Parameters
+        ----------
+        trip : SingleTrip
+            Trip containing the date and location to use as reference to compute the
+            time period, used to filter the timeserie data
+
+        Returns
+        -------
+        SingleTrip
+            Trip containing the filtered timeserie data
+        """
+        try:
+            # Get the timeserie data for the given time range
+            period_timeseries = []
+            for year in range(self.years_same_period):
+                ref_date = (
+                    trip.start_date
+                    - datetime.timedelta(
+                        days=(self.first_year_before_date - year) * 365
+                    )
+                    - self.days_before_trip_period
+                )
+                period_timeseries.append(
+                    self.timeserie_df[
+                        (
+                            self.timeserie_df[self.date_column]
+                            >= ref_date
+                            - self.period_length_per_year / 2
+                            + datetime.timedelta(days=1)
+                            # +1 because the trip start date is included in the period
+                        )
+                        & (
+                            self.timeserie_df[self.date_column]
+                            <= ref_date + self.period_length_per_year / 2
+                        )
+                    ][[self.date_column, trip.location]]
+                )
+            period_timeserie = pd.concat(period_timeseries)
+            # Set the index to the date column
+            period_timeserie.set_index(self.date_column, inplace=True, drop=True)
+
+        except KeyError as e:
+            print(f"KeyError: {e}")
+            period_timeserie = pd.Series([np.nan] * self.period_length_per_year.days)
+
+        return SingleTrip(
+            index=trip.index,
+            location=trip.location,
+            start_date=trip.start_date,
+            weather_index=trip.weather_index,
+            trip_vehicle=trip.trip_vehicle,
+            weather_timeserie=period_timeserie[trip.location],
+        )
+
+    def __repr__(self):
+        return (
+            "SelectPeriodBeforeDateMultipleYears("
+            f"{self.date_column}, {self.location_column}, {self.years_same_period},"
+            f" {self.period_length_per_year}, {self.first_year_before_date},"
+            f" {self.days_before_trip_period})"
+        )
+
+
 class SelectVariablePeriodBeforeDateByVehicle(SelectPeriodBeforeTripDate):
     def __init__(
         self,
@@ -469,12 +627,14 @@ class HeatwavesAggregator(AggregateTimeSerie):
         trip_timeserie.index = trip_timeserie.index.map(
             lambda x: x.replace(year=self.reference_year)
         )
-
-        # Calculate the rolling average of maximum temperatures
-        historical_avg_df = self.historical_data.loc[
-            trip_timeserie.index, trip.location
-        ]
-        # rolling_avg = period_hist_data.rolling(window=datetime.timedelta(days=5)).mean()
+        try:
+            # Calculate the rolling average of maximum temperatures
+            historical_avg_df = self.historical_data.loc[
+                trip_timeserie.index, trip.location
+            ]
+        except KeyError as e:
+            print(f"KeyError: {e}")
+            return np.nan
 
         # Calculate the difference between daily max temperatures and rolling
         # average of historical data

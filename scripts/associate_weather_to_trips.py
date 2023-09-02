@@ -9,6 +9,7 @@ from src.single_trip_operations import (
     MaxAggregator,
     MeanAggregator,
     SelectConstantPeriodBeforeDate,
+    SelectPeriodBeforeDateMultipleYears,
     StdAggregator,
     HeatwavesAggregator,
 )
@@ -57,7 +58,7 @@ datetime_converter = ToDatetimeConverter(
 
 visited_province_index_creator = MultipleWeatherIndexCreator(
     trip_location_column="PROVINCIA_VISITATA_mapped",
-    trip_date_column="DATA_INIZ_VIAGGIO_computed",  # DATA_INIZ_VIAGGIO_computed
+    trip_date_column="DATA_INIZ_VIAGGIO_computed",
     operations_to_column_map=WeatherIndexOperationsToColumnMap(
         select_period=SelectConstantPeriodBeforeDate(
             timeserie_df=timeseries_per_province_df,
@@ -80,9 +81,36 @@ visited_province_index_creator = MultipleWeatherIndexCreator(
     ),
     force_repeat=False,
 )
+
+visited_province_multiyear_index_creator = MultipleWeatherIndexCreator(
+    trip_location_column="PROVINCIA_VISITATA_mapped",
+    trip_date_column="DATA_INIZ_VIAGGIO_computed",
+    operations_to_column_map=WeatherIndexOperationsToColumnMap(
+        select_period=SelectPeriodBeforeDateMultipleYears(
+            timeserie_df=timeseries_per_province_df,
+            date_column="DATE",
+            location_column="PROVINCIA_VISITATA_mapped",
+            years_same_period=5,
+            # 1 month before + 1 after leaving, for the 5 previous years
+            period_length_per_year=datetime.timedelta(days=60),
+            first_year_before_date=5,
+            days_before_trip_period=datetime.timedelta(days=0),
+        ),
+        output_column_to_aggregator={
+            f"PROVINCIA_VISITATA_{weather_timeserie.value}_5y_before_5y_for_3m_period_mean": MeanAggregator(),
+            f"PROVINCIA_VISITATA_{weather_timeserie.value}_5y_before_5y_for_3m_period_std": StdAggregator(),
+            f"PROVINCIA_VISITATA_{weather_timeserie.value}_5y_before_5y_for_3m_period_max": MaxAggregator(),
+            f"PROVINCIA_VISITATA_{weather_timeserie.value}_5y_before_5y_for_3m_period_heatwaves": HeatwavesAggregator(
+                historical_data=timeserie_tx_per_province_historical, date_column="DATE"
+            ),
+        },
+    ),
+    force_repeat=False,
+)
+
 residence_country_index_creator = MultipleWeatherIndexCreator(
     trip_location_column="STATO_RESIDENZA_mapped",
-    trip_date_column="DATA_INIZ_VIAGGIO_computed",  # DATA_INIZ_VIAGGIO_computed
+    trip_date_column="DATA_INIZ_VIAGGIO_computed",
     operations_to_column_map=WeatherIndexOperationsToColumnMap(
         select_period=SelectConstantPeriodBeforeDate(
             timeserie_df=timeseries_per_country_df,
@@ -97,6 +125,32 @@ residence_country_index_creator = MultipleWeatherIndexCreator(
             f"STATO_RESIDENZA_{weather_timeserie.value}_45d_before_3m_period_std": StdAggregator(),
             f"STATO_RESIDENZA_{weather_timeserie.value}_45d_before_3m_period_max": MaxAggregator(),
             f"STATO_RESIDENZA_{weather_timeserie.value}_45d_before_3m_period_heatwaves": HeatwavesAggregator(
+                historical_data=timeserie_tx_per_country_historical, date_column="DATE"
+            ),
+        },
+    ),
+    force_repeat=False,
+)
+
+residence_country_multiyear_index_creator = MultipleWeatherIndexCreator(
+    trip_location_column="STATO_RESIDENZA_mapped",
+    trip_date_column="DATA_INIZ_VIAGGIO_computed",  # DATA_INIZ_VIAGGIO_computed
+    operations_to_column_map=WeatherIndexOperationsToColumnMap(
+        select_period=SelectPeriodBeforeDateMultipleYears(
+            timeserie_df=timeseries_per_country_df,
+            date_column="DATE",
+            location_column="STATO_RESIDENZA_mapped",
+            years_same_period=2,
+            # 1 month before + 1 after leaving, for the 5 previous years
+            period_length_per_year=datetime.timedelta(days=60),
+            first_year_before_date=2,
+            days_before_trip_period=datetime.timedelta(days=0),
+        ),
+        output_column_to_aggregator={
+            f"STATO_RESIDENZA_{weather_timeserie.value}_2y_before_2y_for_3m_period_mean": MeanAggregator(),
+            f"STATO_RESIDENZA_{weather_timeserie.value}_2y_before_2y_for_3m_period_std": StdAggregator(),
+            f"STATO_RESIDENZA_{weather_timeserie.value}_2y_before_2y_for_3m_period_max": MaxAggregator(),
+            f"STATO_RESIDENZA_{weather_timeserie.value}_2y_before_2y_for_3m_period_heatwaves": HeatwavesAggregator(
                 historical_data=timeserie_tx_per_country_historical, date_column="DATE"
             ),
         },
@@ -132,6 +186,33 @@ visited_country_index_creator = MultipleWeatherIndexCreator(
     force_repeat=False,
 )
 
+
+visited_country_multiyear_index_creator = MultipleWeatherIndexCreator(
+    trip_location_column="STATO_VISITATO_mapped",
+    trip_date_column="DATA_INIZ_VIAGGIO_computed",
+    operations_to_column_map=WeatherIndexOperationsToColumnMap(
+        select_period=SelectPeriodBeforeDateMultipleYears(
+            timeserie_df=timeseries_per_country_df,
+            date_column="DATE",
+            location_column="STATO_VISITATO_mapped",
+            years_same_period=5,
+            # 1 month before + 1 after leaving, for the 5 previous years
+            period_length_per_year=datetime.timedelta(days=60),
+            first_year_before_date=5,
+            days_before_trip_period=datetime.timedelta(days=0),
+        ),
+        output_column_to_aggregator={
+            f"STATO_VISITATO_{weather_timeserie.value}_5y_before_5y_for_3m_period_mean": MeanAggregator(),
+            f"STATO_VISITATO_{weather_timeserie.value}_5y_before_5y_for_3m_period_std": StdAggregator(),
+            f"STATO_VISITATO_{weather_timeserie.value}_5y_before_5y_for_3m_period_max": MaxAggregator(),
+            f"STATO_VISITATO_{weather_timeserie.value}_5y_before_5y_for_3m_period_heatwaves": HeatwavesAggregator(
+                historical_data=timeserie_tx_per_country_historical, date_column="DATE"
+            ),
+        },
+    ),
+    force_repeat=False,
+)
+
 residence_province_index_creator = MultipleWeatherIndexCreator(
     trip_location_column="PROV_RESIDENZA_mapped",
     trip_date_column="DATA_INIZ_VIAGGIO_computed",  # DATA_INIZ_VIAGGIO_computed
@@ -156,10 +237,37 @@ residence_province_index_creator = MultipleWeatherIndexCreator(
     force_repeat=False,
 )
 
+residence_province_multiyear_index_creator = MultipleWeatherIndexCreator(
+    trip_location_column="PROV_RESIDENZA_mapped",
+    trip_date_column="DATA_INIZ_VIAGGIO_computed",  # DATA_INIZ_VIAGGIO_computed
+    operations_to_column_map=WeatherIndexOperationsToColumnMap(
+        select_period=SelectPeriodBeforeDateMultipleYears(
+            timeserie_df=timeseries_per_province_df,
+            date_column="DATE",
+            location_column="PROV_RESIDENZA_mapped",
+            years_same_period=2,
+            # 1 month before + 1 after leaving, for the 5 previous years
+            period_length_per_year=datetime.timedelta(days=60),
+            first_year_before_date=2,
+            days_before_trip_period=datetime.timedelta(days=0),
+        ),
+        output_column_to_aggregator={
+            f"PROV_RESIDENZA_{weather_timeserie.value}_2y_before_2y_for_3m_period_mean": MeanAggregator(),
+            f"PROV_RESIDENZA_{weather_timeserie.value}_2y_before_2y_for_3m_period_std": StdAggregator(),
+            f"PROV_RESIDENZA_{weather_timeserie.value}_2y_before_2y_for_3m_period_max": MaxAggregator(),
+            f"PROV_RESIDENZA_{weather_timeserie.value}_2y_before_2y_for_3m_period_heatwaves": HeatwavesAggregator(
+                historical_data=timeserie_tx_per_province_historical, date_column="DATE"
+            ),
+        },
+    ),
+    force_repeat=False,
+)
+
+
 # read tourism data
 for tourist_origin in [
     TouristOrigin.ITALIANS,
-    # TouristOrigin.FOREIGNERS,
+    TouristOrigin.FOREIGNERS,
 ]:
     if USE_SAMPLED:
         dataset = GenericTripDataset(
@@ -177,9 +285,17 @@ for tourist_origin in [
         if tourist_origin == TouristOrigin.ITALIANS:
             dataset = dataset.apply(visited_country_index_creator, save=True)
             dataset = dataset.apply(residence_province_index_creator, save=True)
+            dataset = dataset.apply(visited_country_multiyear_index_creator, save=True)
+            dataset = dataset.apply(
+                residence_province_multiyear_index_creator, save=True
+            )
         else:
             dataset = dataset.apply(visited_province_index_creator, save=True)
             dataset = dataset.apply(residence_country_index_creator, save=True)
+            dataset = dataset.apply(visited_province_multiyear_index_creator, save=True)
+            dataset = dataset.apply(
+                residence_country_multiyear_index_creator, save=True
+            )
 
     else:
         for year in tqdm(range(1997, 2023, 1)):
@@ -198,9 +314,21 @@ for tourist_origin in [
             if tourist_origin == TouristOrigin.ITALIANS:
                 dataset = dataset.apply(visited_country_index_creator, save=True)
                 dataset = dataset.apply(residence_province_index_creator, save=True)
+                dataset = dataset.apply(
+                    visited_country_multiyear_index_creator, save=True
+                )
+                dataset = dataset.apply(
+                    residence_province_multiyear_index_creator, save=True
+                )
             else:
                 dataset = dataset.apply(visited_province_index_creator, save=True)
                 dataset = dataset.apply(residence_country_index_creator, save=True)
+                dataset = dataset.apply(
+                    visited_province_multiyear_index_creator, save=True
+                )
+                dataset = dataset.apply(
+                    residence_country_multiyear_index_creator, save=True
+                )
 
 
 if POST_ANALYSIS:

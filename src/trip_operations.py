@@ -69,6 +69,54 @@ class ToDatetimeConverter(TripDatasetOperation):
         )
 
 
+class MergeWithDataset(TripDatasetOperation):
+    def __init__(
+        self,
+        dataset_to_merge: TripDataset,
+        on: str,
+        how: str = "inner",
+        force_repeat: bool = False,
+    ) -> None:
+        """
+        Merge the dataset with the given dataframe
+
+        Parameters
+        ----------
+        df_to_merge : TripDataset
+            The dataset to merge with the ``dataset`` that will be passed to
+            ``__call__`` method
+        on : str
+            The column to use to merge the two dataframes
+        how : str, optional
+            The type of merge to perform. Default is "inner".
+        force_repeat : bool, optional
+            If True, the operation will be repeated even if the output columns are
+            already present in the dataset. Default is False.
+        """
+        super().__init__(
+            input_columns=[on],
+            output_columns=[],
+            force_repeat=force_repeat,
+        )
+        self.dataset_to_merge = dataset_to_merge
+        self.on = on
+        self.how = how
+
+    def __call__(self, dataset: TripDataset) -> pd.DataFrame:
+        new_df = pd.merge(
+            dataset.df,
+            self.dataset_to_merge.df,
+            on=self.on,
+            how=self.how,
+            suffixes=("", "_y"),
+        )
+        print(f"{dataset.df.shape[0] - new_df.shape[0]} rows are lost after the merge")
+        return new_df
+
+    def __repr__(self) -> str:
+        return f"MergeOperation({self.dataset_to_merge}, {self.on}, {self.how})"
+
+
 class TripStartDateCreator(TripDatasetOperation):
     def __init__(
         self,

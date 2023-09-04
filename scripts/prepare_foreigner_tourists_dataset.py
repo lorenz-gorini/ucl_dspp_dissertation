@@ -24,6 +24,7 @@ from src.trip_operations import (
     CoordinateToElevationMapper,
     FilterCountries,
     LocationToCoordinatesMapper,
+    MergeWithDataset,
     ReplaceValuesByMap,
     ToDatetimeConverter,
     TripStartDateCreator,
@@ -142,5 +143,23 @@ for year in tqdm(range(1997, 2020, 1)):
     ), f"{initial_nrows - dataset.df.shape[0]} rows were dropped, check the code"
 
     dataset = dataset.apply(filter_european_tourists_to_italy, save=True)
+
+    # Add expansion factors by merging with the dataset containing them
+    nrows_before_merge = dataset.df.shape[0]
+    dataset_exp_factor = TripDataset(
+        variable_subset=VariableSubset.EXPANSION_FACTORS,
+        tourist_origin=TouristOrigin.FOREIGNERS,
+        year=year,
+        raw_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
+        force_raw=False,
+    )
+    dataset_merge = dataset.apply(
+        MergeWithDataset(dataset_exp_factor, on="CHIAVE", how="inner"), save=False
+    )
+    assert nrows_before_merge == dataset.df.shape[0], (
+        f"{nrows_before_merge - dataset.df.shape[0]} rows were dropped due "
+        "to Merge operation"
+    )
+    dataset_merge.save_df()
 
     print("OK")

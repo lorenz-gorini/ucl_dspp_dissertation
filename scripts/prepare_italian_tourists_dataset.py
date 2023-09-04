@@ -14,6 +14,7 @@ from src.trip_operations import (
     FilterCountries,
     ReplaceValuesByMap,
     ToDatetimeConverter,
+    MergeWithDataset,
     TripStartDateCreator,
 )
 
@@ -88,7 +89,6 @@ filter_italian_tourists_to_europe = FilterCountries(
     force_repeat=False,
 )
 
-
 # 2. Load the data by year and compute the aggregated values by year and
 # by country of origin
 for year in tqdm(range(1997, 2020, 1)):
@@ -115,4 +115,22 @@ for year in tqdm(range(1997, 2020, 1)):
         initial_nrows == dataset.df.shape[0]
     ), f"{initial_nrows - dataset.df.shape[0]} rows were dropped, check the code"
 
-    dataset = dataset.apply(filter_italian_tourists_to_europe, save=True)
+    dataset = dataset.apply(filter_italian_tourists_to_europe, save=False)
+
+    # Add expansion factors by merging with the dataset containing them
+    nrows_before_merge = dataset.df.shape[0]
+    dataset_exp_factor = TripDataset(
+        variable_subset=VariableSubset.EXPANSION_FACTORS,
+        tourist_origin=TouristOrigin.ITALIANS,
+        year=year,
+        raw_folder=Path("/mnt/c/Users/loreg/Documents/dissertation_data/raw"),
+        force_raw=False,
+    )
+    dataset_merge = dataset.apply(
+        MergeWithDataset(dataset_exp_factor, on="CHIAVE", how="inner"), save=False
+    )
+    assert nrows_before_merge == dataset.df.shape[0], (
+        f"{nrows_before_merge - dataset.df.shape[0]} rows were dropped due "
+        "to Merge operation"
+    )
+    dataset_merge.save_df()

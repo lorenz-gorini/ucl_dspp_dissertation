@@ -140,6 +140,23 @@ class GenericTripDataset:
                     )
         return is_applied
 
+    def copy(self) -> "GenericTripDataset":
+        """
+        Return a copy of the dataset
+
+        Returns
+        -------
+        GenericTripDataset
+            A copy of the dataset.
+        """
+        return GenericTripDataset(
+            raw_file_path=self.raw_file_path,
+            processed_file_path=self.processed_file_path,
+            column_to_dtype_map=self.column_to_dtype_map,
+            df=self.df.copy(),
+            force_raw=self.force_raw,
+        )
+
     def apply(
         self, operation: "TripDatasetOperation", save: bool = False
     ) -> "TripDataset":
@@ -172,20 +189,22 @@ class GenericTripDataset:
         """
         if operation.force_repeat is False and self.is_operation_applied(operation):
             print(f"Operation {str(operation)} already performed on dataset. Skipping")
+            return self
         else:
+            dataset = self.copy()
             if operation.force_repeat is True:
-                self._remove_operation(operation)
+                dataset._remove_operation(operation)
             # Need to cache the operations, because applying the ``operation``
             # may drop some rows containing previous operations already applied
-            operation_cache = self.operations
+            operation_cache = dataset.operations
             print(f"Applying operation {str(operation)} to dataset")
-            self._df = operation(self)
+            dataset._df = operation(dataset)
             # Restore the operation list by writing them on the new dataset
-            self._restore_operations(operation_cache)
-            self._add_operation(operation)
+            dataset._restore_operations(operation_cache)
+            dataset._add_operation(operation)
             if save:
-                self.save_df()
-        return self
+                dataset.save_df()
+            return dataset
 
     def __repr__(self) -> str:
         attributes = self.__dict__.copy()
@@ -244,7 +263,8 @@ class TripDataset:
             size of Int64. In case where
             (year==2018 and tourist_origin==TouristOrigin.FOREIGNERS)
             the "CHIAVE" key will be automatically replaced with "chiave" due to
-            inconsistency of the raw data. Default is None.
+            inconsistency in the column naming of the raw data, then the name "chiave"
+            will be replaced with "CHIAVE" for consistency. Default is None.
         force_raw : bool
             If True, the dataset will be loaded in "raw" version from ``raw_folder``,
             even if it is present in the ``processed_folder``. The default is False.
@@ -438,26 +458,47 @@ class TripDataset:
                     )
         return is_applied
 
+    def copy(self) -> "TripDataset":
+        """
+        Return a copy of the dataset
+
+        Returns
+        -------
+        TripDataset
+            A copy of the dataset.
+        """
+        dataset = TripDataset(
+            variable_subset=self.variable_subset,
+            tourist_origin=self.tourist_origin,
+            year=self.year,
+            raw_folder=self.raw_folder,
+            processed_folder=self.processed_folder,
+            column_to_dtype_map=self.column_to_dtype_map,
+            force_raw=self.force_raw,
+        )
+        dataset._df = self.df.copy()
+        return dataset
+
     def apply(
         self, operation: "TripDatasetOperation", save: bool = False
     ) -> "TripDataset":
         if operation.force_repeat is False and self.is_operation_applied(operation):
             print(f"Operation {str(operation)} already performed on dataset. Skipping")
         else:
+            dataset = self.copy()
             if operation.force_repeat is True:
-                self._remove_operation(operation)
-
+                dataset._remove_operation(operation)
             # Need to cache the operations, because applying the ``operation``
             # may drop some rows containing previous operations already applied
-            operation_cache = self.operations
+            operation_cache = dataset.operations
             print(f"Applying operation {str(operation)} to dataset")
-            self._df = operation(self)
+            dataset._df = operation(dataset)
             # Restore the operation list by writing them on the new dataset
-            self._restore_operations(operation_cache)
-            self._add_operation(operation)
+            dataset._restore_operations(operation_cache)
+            dataset._add_operation(operation)
             if save:
-                self.save_df()
-        return self
+                dataset.save_df()
+            return dataset
 
     def __repr__(self) -> str:
         attributes = self.__dict__.copy()

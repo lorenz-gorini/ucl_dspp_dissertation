@@ -482,6 +482,34 @@ class TripDataset:
     def apply(
         self, operation: "TripDatasetOperation", save: bool = False
     ) -> "TripDataset":
+        """
+        Apply an operation to the dataset
+
+        When the ``operation`` is applied, the original dataset is not modified inplace,
+        but the returned object contains the operation result and keeps track of it
+        by saving the ``operation`` string representation in the ``operations``
+        column (that can be accessed with ``operations`` property), so that it can
+        also be skipped when it is already applied, to optimize performances.
+
+        NOTE
+        ----
+        When ``save`` is True, the dataset overwrites the related CSV file in the
+        ``processed_folder`` every time an ``operation`` is applied, so that the
+        operations are not repeated if the script is interrupted and we load the
+        same dataset again.
+
+        Parameters
+        ----------
+        operation : TripDatasetOperation
+            The operation to apply to the dataset.
+        save : bool, optional
+            If True, the dataset will be saved to disk after applying the operation.
+
+        Returns
+        -------
+        TripDataset
+            The dataset with the operation applied.
+        """
         if operation.force_repeat is False and self.is_operation_applied(operation):
             print(f"Operation {str(operation)} already performed on dataset. Skipping")
         else:

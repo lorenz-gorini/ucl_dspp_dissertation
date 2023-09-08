@@ -295,9 +295,10 @@ class TripDataset:
 
         if column_to_dtype_map is None:
             column_to_dtype_map = {"CHIAVE": str}
-        # Replace the "CHIAVE" key with "chiave" if year==2018
         if self.year == 2018 and tourist_origin == TouristOrigin.FOREIGNERS:
-            column_to_dtype_map["chiave"] = column_to_dtype_map.pop("CHIAVE")
+            # The 2018 file has a different column name for the key, so
+            # replace the "CHIAVE" key with "chiave" if year==2018
+            column_to_dtype_map["chiave"] = column_to_dtype_map.pop("CHIAVE", str)
         self.column_to_dtype_map = column_to_dtype_map
 
         self._temp_path = Path(".")
@@ -512,6 +513,7 @@ class TripDataset:
         """
         if operation.force_repeat is False and self.is_operation_applied(operation):
             print(f"Operation {str(operation)} already performed on dataset. Skipping")
+            return self
         else:
             dataset = self.copy()
             if operation.force_repeat is True:

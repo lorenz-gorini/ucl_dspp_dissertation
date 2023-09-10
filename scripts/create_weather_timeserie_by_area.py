@@ -34,7 +34,7 @@ if HISTORICAL:
     FIRST_YEAR = 1961
     LAST_YEAR = 1990  # this is included until 31th Dec in the time period
 else:
-    FIRST_YEAR = 1997
+    FIRST_YEAR = 1994
     LAST_YEAR = 2019  # this is included until 31th Dec in the time period
 
 raw_ts_data = GeoTimeSerieDataset(
@@ -140,13 +140,39 @@ def get_location_temperature(
         return pd.Series(name=location_name)
 
 
+total_years_to_compute = set(range(FIRST_YEAR, LAST_YEAR + 1))
+
 for location_type, polygons_per_location in [
     ("country", country_polygons),
     ("province", province_polygons),
 ]:
     timeseries_per_locat = []
+    OUTPUT_FILE_PATH = Path(
+        "/mnt/c/Users/loreg/Documents/dissertation_data/"
+        f"timeserie_{timeserie_name.value}_per_{location_type}.csv"
+    )
+    if OUTPUT_FILE_PATH.exists():
+        print("Loading already computed data")
+        already_computed_df = pd.read_csv(OUTPUT_FILE_PATH)
+        already_computed_df["DATE"] = pd.to_datetime(already_computed_df["DATE"])
 
     for name, polygon in sorted(list(polygons_per_location.items())):
+        if OUTPUT_FILE_PATH.exists() and name in already_computed_df.columns:
+            # Check how many years have been computed for this location
+            single_locat_computed = already_computed_df[
+                already_computed_df[name].notna()
+            ]
+            already_computed_years = set(single_locat_computed["DATE"].dt.year.unique())
+            single_locat_computed = single_locat_computed.set_index("DATE")[name]
+            years_to_compute = total_years_to_compute - already_computed_years
+            print(f"{len(years_to_compute)} years not yet computed for {name}")
+        else:
+            years_to_compute = total_years_to_compute
+
+        if len(years_to_compute) == 0:
+            timeseries_per_locat.append(single_locat_computed)
+            continue
+
         # I need to analye each year separately because the data is too big, so I first
         # need to slice the timeseries for each year and then combine them
         one_locat_multi_year_list = Parallel(n_jobs=3, backend="loky")(
@@ -157,23 +183,35 @@ for location_type, polygons_per_location in [
                 multi_polygon=polygon,
                 raw_ts_data=raw_ts_data,
             )
-            for year in range(FIRST_YEAR, LAST_YEAR + 1)
+            for year in years_to_compute
         )
-        # Combine the timeseries of each year into a single pd.Series
-        single_prov_ts_serie = pd.concat(one_locat_multi_year_list, axis=0)
+
+        if OUTPUT_FILE_PATH.exists() and name in already_computed_df.columns:
+            # Combine already computed dataframe (loaded from disk) with the
+            # timeseries of each year into a single pd.Series
+            single_prov_ts_serie = pd.concat(
+                one_locat_multi_year_list + [single_locat_computed], axis=0
+            )
+        else:
+            single_prov_ts_serie = pd.concat(one_locat_multi_year_list, axis=0)
+        single_prov_ts_serie.index = pd.to_datetime(single_prov_ts_serie.index)
+        # Sort series by date
+        single_prov_ts_serie.sort_index(inplace=True)
         timeseries_per_locat.append(single_prov_ts_serie)
 
-        # Save partial results
+        # Save partial results (because every loop takes long)
         timeseries_per_locat_df = pd.DataFrame(timeseries_per_locat).T
         timeseries_per_locat_df.index = pd.to_datetime(timeseries_per_locat_df.index)
         timeseries_per_locat_df.reset_index(inplace=True, drop=False)
-        timeseries_per_locat_df.rename(columns={"index": "date"}, inplace=True)
 
-        file_path = (
-            "/mnt/c/Users/loreg/Documents/dissertation_data/"
-            f"timeserie_{timeserie_name.value}_per_{location_type}.csv"
-        )
-        timeseries_per_locat_df.to_csv(file_path, index=False)
+        if "time" in timeseries_per_locat_df.columns:
+            timeseries_per_locat_df.rename(columns={"time": "DATE"}, inplace=True)
+        elif "index" in timeseries_per_locat_df.columns:
+            timeseries_per_locat_df.rename(columns={"index": "DATE"}, inplace=True)
+        else:
+            raise ValueError("No time column found")
+
+        timeseries_per_locat_df.to_csv(OUTPUT_FILE_PATH, index=False)
 
 
 if POST_ANALYSIS:
